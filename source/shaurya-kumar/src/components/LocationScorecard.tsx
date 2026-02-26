@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useScorecard, type ScorecardRow } from "@/hooks/useScorecard";
+import { useLocations } from "@/hooks/useLocations";
 import { useFilters } from "@/contexts/FilterContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +12,10 @@ import {
     ChevronUp,
     ChevronDown,
     GitCompareArrows,
+    X,
 } from "lucide-react";
 import DateRangeFilter from "@/components/DateRangeFilter";
+import ExportButton from "@/components/ExportButton";
 
 type SortKey = "name" | "city" | "totalRevenue" | "avgRating" | "trendPct" | "wastePct";
 type SortDir = "asc" | "desc";
@@ -103,7 +106,8 @@ function SortHeader({
 
 export default function LocationScorecard({ onLocationSelect }: LocationScorecardProps) {
     const { data, loading, error } = useScorecard();
-    const { comparisonLocationIds, toggleComparisonLocation, searchQuery } = useFilters();
+    const { data: locations } = useLocations();
+    const { comparisonLocationIds, toggleComparisonLocation, clearComparison, searchQuery } = useFilters();
     const [sortKey, setSortKey] = useState<SortKey>("totalRevenue");
     const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -183,21 +187,63 @@ export default function LocationScorecard({ onLocationSelect }: LocationScorecar
                 </div>
             </div>
 
-            {/* Comparison mode hint */}
+            {/* Comparison mode banner */}
             {comparisonLocationIds.length > 0 && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
-                    <GitCompareArrows size={14} />
-                    <span>
-                        Comparing {comparisonLocationIds.length} location{comparisonLocationIds.length > 1 ? "s" : ""}.
-                        Select up to 3.
-                    </span>
+                <div className="flex items-center gap-3 text-sm bg-primary/5 border border-primary/20 px-4 py-2.5 rounded-lg">
+                    <GitCompareArrows size={16} className="text-primary shrink-0" />
+                    <div className="flex-1 flex flex-wrap items-center gap-2">
+                        <span className="text-muted-foreground font-medium">Comparing:</span>
+                        {comparisonLocationIds.map((id) => {
+                            const loc = locations.find((l) => l.LOCATION_ID === id);
+                            return (
+                                <span
+                                    key={id}
+                                    className="inline-flex items-center gap-1 bg-background px-2 py-0.5 rounded-md border text-xs font-medium"
+                                >
+                                    {loc?.NAME || `#${id}`}
+                                    <button
+                                        onClick={() => toggleComparisonLocation(id)}
+                                        className="text-muted-foreground hover:text-foreground ml-0.5"
+                                    >
+                                        <X size={12} />
+                                    </button>
+                                </span>
+                            );
+                        })}
+                        {comparisonLocationIds.length < 3 && (
+                            <span className="text-xs text-muted-foreground">
+                                (select up to 3)
+                            </span>
+                        )}
+                    </div>
+                    <button
+                        onClick={clearComparison}
+                        className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline shrink-0"
+                    >
+                        Clear all
+                    </button>
                 </div>
             )}
 
             {/* Table */}
             <Card>
                 <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Location Scorecard</CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">Location Scorecard</CardTitle>
+                        <ExportButton
+                            data={sorted as unknown as Record<string, unknown>[]}
+                            filename="snowcone_scorecard"
+                            columns={[
+                                { key: "name", label: "Location" },
+                                { key: "city", label: "City" },
+                                { key: "totalRevenue", label: "Revenue", format: (v) => `$${Number(v).toLocaleString()}` },
+                                { key: "avgRating", label: "Avg Rating", format: (v) => Number(v).toFixed(1) },
+                                { key: "trendPct", label: "Trend %", format: (v) => `${v}%` },
+                                { key: "wastePct", label: "Waste %", format: (v) => `${Number(v).toFixed(1)}%` },
+                                { key: "status", label: "Status" },
+                            ]}
+                        />
+                    </div>
                 </CardHeader>
                 <CardContent className="p-0">
                     <div className="overflow-x-auto">
@@ -249,8 +295,8 @@ export default function LocationScorecard({ onLocationSelect }: LocationScorecar
                                                         toggleComparisonLocation(row.locationId);
                                                     }}
                                                     className={`w-4 h-4 rounded border transition-colors ${isComparing
-                                                            ? "bg-primary border-primary"
-                                                            : "border-border hover:border-primary/50"
+                                                        ? "bg-primary border-primary"
+                                                        : "border-border hover:border-primary/50"
                                                         }`}
                                                     title={isComparing ? "Remove from comparison" : "Add to comparison"}
                                                 >
@@ -282,10 +328,10 @@ export default function LocationScorecard({ onLocationSelect }: LocationScorecar
                                             <td className="px-4 py-3 text-center hidden lg:table-cell">
                                                 <span
                                                     className={`text-sm tabular-nums ${row.wastePct > 15
-                                                            ? "text-red-500 font-medium"
-                                                            : row.wastePct > 10
-                                                                ? "text-amber-600"
-                                                                : "text-muted-foreground"
+                                                        ? "text-red-500 font-medium"
+                                                        : row.wastePct > 10
+                                                            ? "text-amber-600"
+                                                            : "text-muted-foreground"
                                                         }`}
                                                 >
                                                     {row.wastePct.toFixed(1)}%
