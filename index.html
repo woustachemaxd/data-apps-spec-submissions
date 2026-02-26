@@ -430,18 +430,45 @@
       return `${datePart}, ${timePart}`;
     }
 
+    function countSubmissions(commits) {
+      if (!commits.length) return 0;
+      const GAP_MS = 2 * 60 * 1000; // 2 minute gap = new submission
+      let count = 1;
+      for (let i = 1; i < commits.length; i++) {
+        const prev = new Date(commits[i - 1].commit.author.date).getTime();
+        const curr = new Date(commits[i].commit.author.date).getTime();
+        if (prev - curr > GAP_MS) count++;
+      }
+      return count;
+    }
+
+    async function fetchAllCommits(name) {
+      const all = [];
+      let page = 1;
+      const MAX_PAGES = 10; // safety cap: 1000 commits max
+      while (page <= MAX_PAGES) {
+        const res = await fetch(
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=submission/${name}&per_page=100&page=${page}`
+        );
+        if (res.status === 403 || res.status === 429) break; // rate limited
+        if (!res.ok) break;
+        const commits = await res.json();
+        if (!Array.isArray(commits) || !commits.length) break;
+        all.push(...commits);
+        if (commits.length < 100) break;
+        page++;
+      }
+      return all;
+    }
+
     async function fetchCommitInfo(name) {
       try {
-        const res = await fetch(
-          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=submission/${name}&per_page=100`
-        );
-        if (!res.ok) return null;
-        const commits = await res.json();
+        const commits = await fetchAllCommits(name);
         if (!commits.length) return null;
         return {
           latestDate: commits[0].commit.author.date,
           latestSha: commits[0].sha,
-          count: commits.length
+          count: countSubmissions(commits)
         };
       } catch { return null; }
     }
