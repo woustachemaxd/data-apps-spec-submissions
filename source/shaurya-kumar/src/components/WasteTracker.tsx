@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback } from "react";
 import { useInventory } from "@/hooks/useInventory";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ import {
     ReferenceLine,
     Cell,
 } from "recharts";
-import { AlertTriangle, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, ArrowDownRight, Download } from "lucide-react";
 
 const WASTE_THRESHOLD = 10; // 10% waste rate is the threshold
 
@@ -31,6 +31,42 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function WasteTracker() {
     const { wasteSummary, data: rawData, loading, error } = useInventory();
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const wasteChartRef = useRef<HTMLDivElement>(null);
+
+    const exportChartPNG = useCallback((filename: string) => {
+        const svg = wasteChartRef.current?.querySelector("svg");
+        if (!svg) return;
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const canvas = document.createElement("canvas");
+        const rect = svg.getBoundingClientRect();
+        canvas.width = rect.width * 2;
+        canvas.height = rect.height * 2;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.scale(2, 2);
+        const img = new Image();
+        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, rect.width, rect.height);
+            URL.revokeObjectURL(url);
+            const a = document.createElement("a");
+            a.download = `${filename}_${new Date().toISOString().split("T")[0]}.png`;
+            a.href = canvas.toDataURL("image/png");
+            a.click();
+        };
+        img.src = url;
+    }, []);
+
+    const exportCSV = useCallback((filename: string, headers: string[], rows: (string | number)[][]) => {
+        const csv = [headers.map(h => `"${h}"`).join(","), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+        a.download = `${filename}_${new Date().toISOString().split("T")[0]}.csv`;
+        a.click();
+    }, []);
 
     // Waste by location (aggregated across categories)
     const wasteByLocation = useMemo(() => {
@@ -186,58 +222,80 @@ export default function WasteTracker() {
                                 </Badge>
                             )}
                         </CardTitle>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => exportChartPNG("waste_rate")}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                            >
+                                <Download size={11} /> PNG
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const headers = ["Location", "Waste %", "Waste Cost", "Above Threshold"];
+                                    const rows = wasteByLocation.map(w => [
+                                        w.name, w.wastePct, `$${w.wasteCost.toLocaleString()}`, w.aboveThreshold ? "Yes" : "No"
+                                    ]);
+                                    exportCSV("waste_rate_data", headers, rows);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                            >
+                                <Download size={11} /> CSV
+                            </button>
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <ResponsiveContainer width="100%" height={360}>
-                        <BarChart
-                            data={wasteByLocation}
-                            layout="vertical"
-                            margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                            <XAxis
-                                type="number"
-                                tick={{ fontSize: 11 }}
-                                tickFormatter={(v) => `${v}%`}
-                                domain={[0, "auto"]}
-                            />
-                            <YAxis
-                                type="category"
-                                dataKey="name"
-                                tick={{ fontSize: 11 }}
-                                width={120}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    backgroundColor: "var(--color-popover)",
-                                    border: "1px solid var(--color-border)",
-                                    borderRadius: "8px",
-                                    fontSize: "12px",
-                                }}
-                                formatter={(v?: number) => [`${v ?? 0}%`, "Waste Rate"]}
-                            />
-                            <ReferenceLine
-                                x={WASTE_THRESHOLD}
-                                stroke="var(--color-destructive)"
-                                strokeDasharray="3 3"
-                                label={{
-                                    value: `${WASTE_THRESHOLD}% threshold`,
-                                    position: "top",
-                                    fontSize: 10,
-                                    fill: "var(--color-destructive)",
-                                }}
-                            />
-                            <Bar dataKey="wastePct" radius={[0, 4, 4, 0]}>
-                                {wasteByLocation.map((entry) => (
-                                    <Cell
-                                        key={entry.locationId}
-                                        fill={entry.aboveThreshold ? "var(--color-destructive)" : "var(--color-chart-3)"}
-                                    />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <div ref={wasteChartRef}>
+                        <ResponsiveContainer width="100%" height={360}>
+                            <BarChart
+                                data={wasteByLocation}
+                                layout="vertical"
+                                margin={{ top: 5, right: 30, left: 0, bottom: 5 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                                <XAxis
+                                    type="number"
+                                    tick={{ fontSize: 11 }}
+                                    tickFormatter={(v) => `${v}%`}
+                                    domain={[0, "auto"]}
+                                />
+                                <YAxis
+                                    type="category"
+                                    dataKey="name"
+                                    tick={{ fontSize: 11 }}
+                                    width={120}
+                                />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: "var(--color-popover)",
+                                        border: "1px solid var(--color-border)",
+                                        borderRadius: "8px",
+                                        fontSize: "12px",
+                                    }}
+                                    formatter={(v?: number) => [`${v ?? 0}%`, "Waste Rate"]}
+                                />
+                                <ReferenceLine
+                                    x={WASTE_THRESHOLD}
+                                    stroke="var(--color-destructive)"
+                                    strokeDasharray="3 3"
+                                    label={{
+                                        value: `${WASTE_THRESHOLD}% threshold`,
+                                        position: "top",
+                                        fontSize: 10,
+                                        fill: "var(--color-destructive)",
+                                    }}
+                                />
+                                <Bar dataKey="wastePct" radius={[0, 4, 4, 0]}>
+                                    {wasteByLocation.map((entry) => (
+                                        <Cell
+                                            key={entry.locationId}
+                                            fill={entry.aboveThreshold ? "var(--color-destructive)" : "var(--color-chart-3)"}
+                                        />
+                                    ))}
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
                 </CardContent>
             </Card>
 
