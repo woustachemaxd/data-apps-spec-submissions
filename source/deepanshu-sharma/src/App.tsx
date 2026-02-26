@@ -89,10 +89,10 @@ export default function App() {
         {/* Hero */}
         <div>
           <p className="text-xs tracking-widest text-primary font-semibold mb-2">
-            YOUR STARTING POINT
+            test changes 
           </p>
           <h1 className="text-3xl font-bold tracking-tight">
-            SNOWCONE TEST PUSH
+            Welcome to the Snowcone Starter
           </h1>
           <p className="text-muted-foreground mt-2 max-w-xl">
             This page confirms your Snowflake connection is working and shows
