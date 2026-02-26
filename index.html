@@ -312,6 +312,45 @@
       color: var(--bp-accent);
       margin-top: 1rem;
     }
+
+    /* Card metadata */
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 9px;
+      color: var(--bp-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .card-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    /* Status badges */
+    .badge {
+      position: absolute;
+      top: -8px;
+      right: 12px;
+      padding: 0 6px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .badge-new {
+      background: oklch(0.55 0.18 150);
+      color: #fff;
+    }
+
+    .badge-updated {
+      background: oklch(0.60 0.18 60);
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -351,6 +390,43 @@
     const REPO_OWNER = 'woustachemaxd';
     const REPO_NAME = 'data-apps-spec-submissions';
     const BASE_URL = window.location.origin;
+    const LS_KEY = 'snowcone_reviewed';
+
+    function getReviewed() {
+      try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }
+    }
+
+    function setReviewed(data) {
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+    }
+
+    function timeAgo(dateStr) {
+      const diff = Date.now() - new Date(dateStr).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'just now';
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      if (days < 30) return `${days}d ago`;
+      return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    async function fetchCommitInfo(name) {
+      try {
+        const res = await fetch(
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=submission/${name}&per_page=100`
+        );
+        if (!res.ok) return null;
+        const commits = await res.json();
+        if (!commits.length) return null;
+        return {
+          latestDate: commits[0].commit.author.date,
+          latestSha: commits[0].sha,
+          count: commits.length
+        };
+      } catch { return null; }
+    }
 
     async function loadSubmissions() {
       const container = document.getElementById('submissions');
@@ -368,19 +444,65 @@
           container.innerHTML = '<p class="empty">No submissions yet.</p>';
           return;
         }
+
+        // Fetch commit metadata for all dirs in parallel
+        const commitData = await Promise.all(dirs.map(d => fetchCommitInfo(d.name)));
+        const enriched = dirs.map((d, i) => ({ ...d, commit: commitData[i] }));
+
+        // Sort by latest commit date (newest first), fallback to name
+        enriched.sort((a, b) => {
+          const da = a.commit?.latestDate || '';
+          const db = b.commit?.latestDate || '';
+          if (da && db) return new Date(db) - new Date(da);
+          if (da) return -1;
+          if (db) return 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        const reviewed = getReviewed();
+
         container.className = 'grid';
-        container.innerHTML = dirs
-          .sort((a, b) => a.name.localeCompare(b.name))
-          .map((d, i) => `
-            <a class="card" href="${BASE_URL}/submission/${d.name}/">
+        container.innerHTML = enriched
+          .map((d, i) => {
+            const c = d.commit;
+            let badgeHtml = '';
+            if (c) {
+              const stored = reviewed[d.name];
+              if (!stored) {
+                badgeHtml = '<div class="badge badge-new">NEW</div>';
+              } else if (stored.lastSeenCommitSha !== c.latestSha) {
+                badgeHtml = '<div class="badge badge-updated">UPDATED</div>';
+              }
+            }
+            const metaHtml = c
+              ? `<div class="card-meta"><span>${timeAgo(c.latestDate)}</span><span>${c.count} submission${c.count !== 1 ? 's' : ''}</span></div>`
+              : '';
+            return `
+            <a class="card" href="${BASE_URL}/submission/${d.name}/" data-name="${d.name}" data-sha="${c?.latestSha || ''}">
               <div class="card-spec">No. ${String(i + 1).padStart(2, '0')}</div>
+              ${badgeHtml}
               <div class="card-name">${d.name}</div>
               <div class="card-link">/submission/${d.name}</div>
+              ${metaHtml}
               <div class="corner-bl"></div>
               <div class="corner-br"></div>
               <div class="card-arrow">&#x2510;</div>
             </a>
-          `).join('');
+          `;
+          }).join('');
+
+        // Mark as reviewed on click
+        container.querySelectorAll('.card').forEach(card => {
+          card.addEventListener('click', () => {
+            const name = card.dataset.name;
+            const sha = card.dataset.sha;
+            if (name && sha) {
+              const r = getReviewed();
+              r[name] = { lastSeenCommitSha: sha };
+              setReviewed(r);
+            }
+          });
+        });
 
         // Add count badge after section label
         const label = document.querySelector('.section-label');
