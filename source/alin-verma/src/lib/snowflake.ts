@@ -71,12 +71,14 @@ async function getJWT(): Promise<string> {
 
 /**
  * Execute a SQL query against Snowflake and return the rows.
+ * Handles pagination for large result sets using Snowflake SQL API v2.
  */
 export async function querySnowflake<T = Record<string, unknown>>(
   sql: string
 ): Promise<T[]> {
   const token = await getJWT();
 
+  // Submit the query
   const res = await fetch(`${BASE_URL}/api/v2/statements`, {
     method: "POST",
     headers: {
@@ -98,16 +100,101 @@ export async function querySnowflake<T = Record<string, unknown>>(
     throw new Error(err.message || `Query failed (${res.status})`);
   }
 
-  const json = await res.json();
-
+  let json = await res.json();
+  
   // The SQL API returns data in a columnar format — convert to row objects
+  // Get column names from the result set metadata
   const columns: string[] =
     json.resultSetMetaData?.rowType?.map(
       (col: { name: string }) => col.name
     ) ?? [];
-  const rows: string[][] = json.data ?? [];
 
-  return rows.map((row) => {
+  // Collect all rows
+  const allRows: string[][] = [];
+
+  // Get pagination info
+  const partitionInfo = json.resultSetMetaData?.partitionInfo ?? [];
+  const totalRowCount = json.resultSetMetaData?.numRows ?? 0;
+  const statementHandle = json.statementHandle;
+  
+  console.log(`Query: totalRowCount=${totalRowCount}, partitions=${partitionInfo.length}, initialData=${json.data?.length ?? 0}`);
+
+  // The first partition's data is in the initial response's 'data' field
+  // Add it first
+  if (json.data && Array.isArray(json.data)) {
+    allRows.push(...json.data);
+    console.log(`Initial partition 0: ${json.data.length} rows`);
+  }
+
+  // If there are multiple partitions, fetch the remaining ones
+  // According to Snowflake docs, partition 0 is in the initial response
+  // Partitions 1+ need to be fetched via GET /api/v2/statements/<handle>?partition=N
+  if (partitionInfo.length > 1 && statementHandle) {
+    for (let i = 1; i < partitionInfo.length; i++) {
+      const partitionUrl = `${BASE_URL}/api/v2/statements/${statementHandle}?partition=${i}`;
+      
+      console.log(`Fetching partition ${i}: ${partitionUrl}`);
+      
+      try {
+        const partitionRes = await fetch(partitionUrl, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+            "Accept": "application/json",
+          },
+        });
+
+        if (partitionRes.ok) {
+          // Note: Partition responses may be gzip compressed
+          // The browser should handle decompression automatically
+          const partitionJson = await partitionRes.json();
+          console.log(`Partition ${i} returned ${partitionJson.data?.length ?? 0} rows`);
+          if (partitionJson.data && Array.isArray(partitionJson.data)) {
+            allRows.push(...partitionJson.data);
+          }
+        } else {
+          console.error(`Partition ${i} failed: ${partitionRes.status} ${partitionRes.statusText}`);
+          const errorText = await partitionRes.text().catch(() => '');
+          console.error(`Partition ${i} error: ${errorText}`);
+        }
+      } catch (e) {
+        console.error(`Failed to fetch partition ${i}:`, e);
+      }
+    }
+  }
+
+  // Handle nextResultsUrl for async queries that are still running
+  let nextUrl = json.nextResultsUrl;
+  while (nextUrl) {
+    console.log(`Fetching nextResultsUrl: ${nextUrl}`);
+    try {
+      const nextRes = await fetch(nextUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
+        },
+      });
+
+      if (nextRes.ok) {
+        const nextJson = await nextRes.json();
+        if (nextJson.data && Array.isArray(nextJson.data)) {
+          allRows.push(...nextJson.data);
+        }
+        nextUrl = nextJson.nextResultsUrl;
+      } else {
+        break;
+      }
+    } catch (e) {
+      console.warn("Failed to fetch next page:", e);
+      break;
+    }
+  }
+
+  console.log(`Query returned ${allRows.length} rows (expected ${totalRowCount})`);
+
+  return allRows.map((row) => {
     const obj: Record<string, unknown> = {};
     columns.forEach((col, i) => {
       obj[col] = row[i];
