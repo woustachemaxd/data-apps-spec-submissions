@@ -1,9 +1,12 @@
-import { useMemo, useEffect, useRef } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import { useLocations } from "@/hooks/useLocations";
 import { useSales } from "@/hooks/useSales";
 import { useReviews } from "@/hooks/useReviews";
 import { useInventory } from "@/hooks/useInventory";
 import { formatLongDate, formatShortDate } from "@/lib/dateUtils";
+import { askCortex } from "@/lib/snowflake";
+import { exportChartPNG, exportCSV } from "@/lib/exportUtils";
+import AiInsightPanel from "@/components/AiInsightPanel";
 import {
     AreaChart,
     Area,
@@ -26,6 +29,8 @@ import {
     DollarSign,
     ShoppingBag,
     Trash2,
+    Download,
+    Sparkles,
 } from "lucide-react";
 
 interface LocationDrillDownProps {
@@ -45,6 +50,11 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
     const { data: reviews, loading: reviewsLoading } = useReviews(locationId);
     const { wasteSummary, loading: wasteLoading } = useInventory([locationId]);
     const panelRef = useRef<HTMLDivElement>(null);
+    const revenueChartRef = useRef<HTMLDivElement>(null);
+    const orderChartRef = useRef<HTMLDivElement>(null);
+
+    const [revenueInsight, setRevenueInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
+    const [ordersInsight, setOrdersInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
 
     const location = useMemo(
         () => locations.find((l) => l.LOCATION_ID === locationId),
@@ -94,6 +104,37 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
             totalWaste: Math.round(totalWaste * 100) / 100,
         };
     }, [salesData, reviews, wasteSummary]);
+
+    const handleRevenueInsight = async () => {
+        setRevenueInsight({ loading: true, error: null, content: null });
+        try {
+            const dataLength = revenueByDate.length;
+            const sampleSize = 10;
+            const step = Math.max(1, Math.floor(dataLength / sampleSize));
+            const sampled = revenueByDate.filter((_, i) => i % step === 0 || i === dataLength - 1).map(d => ({
+                d: d.date,
+                revenue: d.revenue
+            }));
+            const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
+            const prompt = `Given this daily revenue trend data for a single location: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the overall pattern and notable insights.`;
+            const content = await askCortex(prompt);
+            setRevenueInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setRevenueInsight({ loading: false, error: err.message, content: null });
+        }
+    };
+
+    const handleOrderTypeInsight = async () => {
+        setOrdersInsight({ loading: true, error: null, content: null });
+        try {
+            const contextStr = orderTypeSplit.map(d => `${d.name}:${d.value}`).join(', ');
+            const prompt = `Given this revenue by order type breakdown for a single location: [${contextStr}], provide a concise insight (maximum 2 sentences) on what order channel is performing best.`;
+            const content = await askCortex(prompt);
+            setOrdersInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setOrdersInsight({ loading: false, error: err.message, content: null });
+        }
+    };
 
     // Close on Escape
     useEffect(() => {
@@ -214,46 +255,83 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                         <div className="bp-card">
                             <div className="bp-corner-bl" />
                             <div className="bp-corner-br" />
-                            <div className="px-4 py-2.5 border-b border-border">
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
                                 <div className="flex items-center gap-2">
                                     <span className="bp-spec">Chart 01</span>
                                     <span className="text-xs font-semibold">Daily Revenue</span>
                                 </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleRevenueInsight}
+                                        disabled={revenueInsight.loading}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Sparkles size={10} className={revenueInsight.loading ? "animate-pulse" : ""} />
+                                        Explain Chart
+                                    </button>
+                                    <div className="w-px h-4 bg-border mx-1" />
+                                    <button
+                                        onClick={() => exportChartPNG(revenueChartRef, "location_revenue_trend")}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                                    >
+                                        <Download size={10} /> PNG
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const headers = ["Date", "Revenue"];
+                                            const rows = revenueByDate.map((d: Record<string, unknown>) =>
+                                                [d.date as string, d.revenue as number]
+                                            );
+                                            exportCSV("location_revenue_data", headers, rows);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                                    >
+                                        <Download size={10} /> CSV
+                                    </button>
+                                </div>
                             </div>
                             <div className="p-3">
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <AreaChart data={revenueByDate} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
-                                        <defs>
-                                            <linearGradient id="drilldownGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                        <XAxis dataKey="date" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} interval={Math.max(0, Math.ceil(revenueByDate.length / 12) - 1)} />
-                                        <YAxis tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-                                        <Tooltip
-                                            contentStyle={{
-                                                backgroundColor: "var(--color-popover)",
-                                                color: "var(--color-popover-foreground)",
-                                                border: "1px solid var(--color-border)",
-                                                borderRadius: "0",
-                                                fontSize: "11px",
-                                                fontFamily: "'JetBrains Mono', monospace",
-                                            }}
-                                            labelStyle={{ color: "var(--color-popover-foreground)" }}
-                                            itemStyle={{ color: "var(--color-popover-foreground)" }}
-                                            formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]}
-                                        />
-                                        <Area
-                                            type="monotone"
-                                            dataKey="revenue"
-                                            stroke="var(--color-primary)"
-                                            fill="url(#drilldownGrad)"
-                                            strokeWidth={2}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
+                                <AiInsightPanel
+                                    isLoading={revenueInsight.loading}
+                                    error={revenueInsight.error}
+                                    content={revenueInsight.content}
+                                    className="mb-4"
+                                />
+                                <div ref={revenueChartRef}>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <AreaChart data={revenueByDate} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
+                                            <defs>
+                                                <linearGradient id="drilldownGrad" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                                            <XAxis dataKey="date" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} interval={Math.max(0, Math.ceil(revenueByDate.length / 12) - 1)} />
+                                            <YAxis tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                                            <Tooltip
+                                                contentStyle={{
+                                                    backgroundColor: "var(--color-popover)",
+                                                    color: "var(--color-popover-foreground)",
+                                                    border: "1px solid var(--color-border)",
+                                                    borderRadius: "0",
+                                                    fontSize: "11px",
+                                                    fontFamily: "'JetBrains Mono', monospace",
+                                                }}
+                                                labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                                itemStyle={{ color: "var(--color-popover-foreground)" }}
+                                                formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="revenue"
+                                                stroke="var(--color-primary)"
+                                                fill="url(#drilldownGrad)"
+                                                strokeWidth={2}
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
                             </div>
                         </div>
 
@@ -261,14 +339,49 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                         <div className="bp-card">
                             <div className="bp-corner-bl" />
                             <div className="bp-corner-br" />
-                            <div className="px-4 py-2.5 border-b border-border">
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
                                 <div className="flex items-center gap-2">
                                     <span className="bp-spec">Chart 02</span>
                                     <span className="text-xs font-semibold">Revenue by Order Type</span>
                                 </div>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleOrderTypeInsight}
+                                        disabled={ordersInsight.loading}
+                                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        <Sparkles size={10} className={ordersInsight.loading ? "animate-pulse" : ""} />
+                                        Explain Chart
+                                    </button>
+                                    <div className="w-px h-4 bg-border mx-1" />
+                                    <button
+                                        onClick={() => exportChartPNG(orderChartRef, "location_order_type_split")}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                                    >
+                                        <Download size={10} /> PNG
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const headers = ["Order Type", "Revenue"];
+                                            const rows = orderTypeSplit.map((d: Record<string, unknown>) =>
+                                                [d.name as string, d.value as number]
+                                            );
+                                            exportCSV("location_order_type_data", headers, rows);
+                                        }}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                                    >
+                                        <Download size={10} /> CSV
+                                    </button>
+                                </div>
                             </div>
                             <div className="p-3">
-                                <div className="flex items-center justify-center">
+                                <AiInsightPanel
+                                    isLoading={ordersInsight.loading}
+                                    error={ordersInsight.error}
+                                    content={ordersInsight.content}
+                                    className="mb-4"
+                                />
+                                <div className="flex items-center justify-center" ref={orderChartRef}>
                                     <ResponsiveContainer width="100%" height={180}>
                                         <PieChart>
                                             <Pie
@@ -360,11 +473,29 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                         <div className="bp-card">
                             <div className="bp-corner-bl" />
                             <div className="bp-corner-br" />
-                            <div className="px-4 py-2.5 border-b border-border">
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
                                 <div className="flex items-center gap-2">
                                     <span className="bp-spec">Data 02</span>
                                     <span className="text-xs font-semibold">Inventory Waste Summary</span>
                                 </div>
+                                <button
+                                    onClick={() => {
+                                        const headers = ["Category", "Received", "Wasted", "Waste %", "Cost"];
+                                        const rows = wasteSummary.map((w: Record<string, unknown>) =>
+                                            [
+                                                String(w.category).replace("_", " & ").toUpperCase(),
+                                                w.totalReceived as number,
+                                                w.totalWasted as number,
+                                                `${w.wastePct}%`,
+                                                `$${(w.totalWasteCost as number).toLocaleString()}`
+                                            ]
+                                        );
+                                        exportCSV("location_inventory_waste_summary", headers, rows);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                                >
+                                    <Download size={10} /> CSV
+                                </button>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="w-full text-xs">
