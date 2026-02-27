@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useInventory } from "@/hooks/useInventory";
 import {
     BarChart,
@@ -19,6 +19,7 @@ import { AlertTriangle, ArrowUpRight, ArrowDownRight, Download, Sparkles } from 
 import { formatShortDate } from "@/lib/dateUtils";
 import { askCortex } from "@/lib/snowflake";
 import AiInsightPanel from "@/components/AiInsightPanel";
+import { exportChartPNG, exportCSV } from "@/lib/exportUtils";
 
 const WASTE_THRESHOLD = 10; // 10% waste rate threshold
 
@@ -106,40 +107,7 @@ export default function WasteTracker() {
         }
     };
 
-    const exportChartPNG = useCallback((ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
-        const svg = ref.current?.querySelector("svg");
-        if (!svg) return;
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const canvas = document.createElement("canvas");
-        const rect = svg.getBoundingClientRect();
-        canvas.width = rect.width * 2;
-        canvas.height = rect.height * 2;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.scale(2, 2);
-        const img = new Image();
-        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        img.onload = () => {
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, rect.width, rect.height);
-            URL.revokeObjectURL(url);
-            const a = document.createElement("a");
-            a.download = `${filename}_${new Date().toISOString().split("T")[0]}.png`;
-            a.href = canvas.toDataURL("image/png");
-            a.click();
-        };
-        img.src = url;
-    }, []);
 
-    const exportCSV = useCallback((filename: string, headers: string[], rows: (string | number)[][]) => {
-        const csv = [headers.map(h => `"${h}"`).join(","), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = `${filename}_${new Date().toISOString().split("T")[0]}.csv`;
-        a.click();
-    }, []);
 
     // ── Waste by location (existing) ──
     const wasteByLocation = useMemo(() => {
