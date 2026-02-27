@@ -1,42 +1,42 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-// FIXED: Added AlertCircle to the lucide-react imports
-import { MapPin, User, Calendar, Users, ArrowLeft, AlertCircle } from "lucide-react";
-import type {
-  LocationDetail,
-  LocationReview,
-  LocationInventorySummary,
-  SalesTimeSeriesData,
-  OrderTypeBreakdown,
-  LocationScoreboard,
-} from "@/lib/queries";
-import {
-  getLocationDetail,
-  getLocationReviews,
-  getLocationInventorySummary,
-  getSalesTimeSeries,
-  getSalesBreakdownByOrderType,
-  getLocationScorecard,
-} from "@/lib/queries";
+import { MapPin, User, Calendar, Users, ArrowLeft, AlertCircle, Download } from "lucide-react";
+import type { LocationDetail, LocationReview, LocationInventorySummary, SalesTimeSeriesData, OrderTypeBreakdown, LocationScoreboard } from "@/lib/queries";
+import { getLocationDetail, getLocationReviews, getLocationInventorySummary, getSalesTimeSeries, getSalesBreakdownByOrderType, getLocationScorecard } from "@/lib/queries";
+import DateFilter from "@/components/DateFilter";
 
 // Safe numeric formatter
 const fmtFixed = (v: unknown, digits = 1) => {
   const n = Number(v);
   return Number.isFinite(n) ? n.toFixed(digits) : "—";
+};
+
+// Export helpers
+const downloadFile = (filename: string, content: string, mime = "text/csv") => {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+};
+
+const toCSV = (rows: any[]) => {
+  if (!rows || rows.length === 0) return "";
+  const keys = Object.keys(rows[0]);
+  const header = keys.join(",");
+  const lines = rows.map((r) => keys.map((k) => {
+    const v = r[k];
+    if (v === null || v === undefined) return "";
+    return typeof v === "string" && v.includes(",") ? `"${v.replace(/"/g, '""')}"` : String(v);
+  }).join(","));
+  return [header, ...lines].join("\n");
 };
 
 export default function LocationDetailPage() {
@@ -51,6 +51,9 @@ export default function LocationDetailPage() {
   const [scorecard, setScorecard] = useState<LocationScoreboard | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<"week" | "month" | "year" | "all">(
+    "month"
+  );
 
   useEffect(() => {
     async function fetchData() {
@@ -60,8 +63,8 @@ export default function LocationDetailPage() {
           getLocationDetail(id),
           getLocationReviews(id, 10),
           getLocationInventorySummary(id),
-          getSalesTimeSeries(id),
-          getSalesBreakdownByOrderType(id),
+          getSalesTimeSeries(id, dateRange),
+          getSalesBreakdownByOrderType(id, dateRange),
           getLocationScorecard(),
         ]);
 
@@ -70,44 +73,23 @@ export default function LocationDetailPage() {
         setInventory(inv);
         setSalesTime(sales);
         setOrderTypes(orders);
-        setScorecard(scores.find((s) => s.LOCATION_ID === id) || null);
+        setScorecard(scores.find((s) => Number(s.LOCATION_ID) === id) || null);
       } catch (e) {
-        console.error("location detail fetch error", e);
         setError(e instanceof Error ? e.message : "Failed to load location data");
       } finally {
         setLoading(false);
       }
     }
+    if (id > 0) fetchData();
+  }, [id, dateRange]);
 
-    if (id > 0) {
-      fetchData();
-    }
-  }, [id]);
+  const totalRevenue = orderTypes.reduce((sum, item) => sum + Number(item.TOTAL_REVENUE), 0);
+  const totalOrders = orderTypes.reduce((sum, item) => sum + item.TOTAL_ORDERS, 0);
+  const totalWaste = inventory.reduce((sum, item) => sum + item.WASTE_COST_TOTAL, 0);
 
-  async function refresh() {
-    try {
-      setLoading(true);
-      const [loc, revs, inv, sales, orders, scores] = await Promise.all([
-        getLocationDetail(id),
-        getLocationReviews(id, 10),
-        getLocationInventorySummary(id),
-        getSalesTimeSeries(id),
-        getSalesBreakdownByOrderType(id),
-        getLocationScorecard(),
-      ]);
-      setLocation(loc);
-      setReviews(revs);
-      setInventory(inv);
-      setSalesTime(sales);
-      setOrderTypes(orders);
-      setScorecard(scores.find((s) => s.LOCATION_ID === id) || null);
-      setError(null);
-    } catch (e) {
-      console.error("location detail refresh error", e);
-      setError(e instanceof Error ? e.message : "Failed to refresh location data");
-    } finally {
-      setLoading(false);
-    }
+  function handleExportCSV() {
+    const csv = toCSV(salesTime);
+    downloadFile(`${location?.NAME?.replace(/\s+/g, '-')}-sales.csv`, csv);
   }
 
   if (loading) {
@@ -119,56 +101,31 @@ export default function LocationDetailPage() {
     );
   }
 
-  if (error || !location) {
-    return (
-      <div className="min-h-screen bg-background">
-        <nav className="border-b px-6 py-4 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 w-fit">
-            <ArrowLeft className="w-4 h-4" /> Back to Operations
-          </Link>
-        </nav>
-        <main className="max-w-4xl mx-auto px-6 py-10">
-          <Card className="border-destructive shadow-sm">
-            <CardContent className="py-6">
-              <p className="font-semibold text-destructive">Error loading location</p>
-              <p className="text-sm text-muted-foreground mt-1">There was a problem querying Snowflake for this location. Try refreshing.</p>
-              <div className="mt-4">
-                <button onClick={refresh} className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors">Retry Connection</button>
-              </div>
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
-  const totalRevenue = orderTypes.reduce((sum, item) => sum + Number(item.TOTAL_REVENUE), 0);
-  const totalOrders = orderTypes.reduce((sum, item) => sum + item.TOTAL_ORDERS, 0);
-  const totalWaste = inventory.reduce((sum, item) => sum + item.WASTE_COST_TOTAL, 0);
+  if (error || !location) return (<div>Error loading location...</div>);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Nav */}
       <nav className="border-b border-border/50 px-6 py-4 flex items-center justify-between bg-card/60 backdrop-blur-md sticky top-0 z-10">
         <Link to="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5 w-fit">
           <ArrowLeft className="w-4 h-4" /> Back to Dashboard
         </Link>
-        <span className="hidden sm:inline-block text-xs font-bold tracking-widest text-primary uppercase">
-          Location Intelligence
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="hidden sm:inline-block text-xs font-bold tracking-widest text-primary uppercase mr-2">
+            Location Intelligence
+          </span>
+          <button onClick={handleExportCSV} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors text-xs font-medium flex items-center gap-1.5 shadow-sm">
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </button>
+        </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-6 py-10 space-y-8">
-        
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent pb-1">
               {location.NAME}
             </h1>
-            <p className="text-muted-foreground font-medium mt-1">
-              {location.CITY}, {location.STATE}
-            </p>
+            <p className="text-muted-foreground font-medium mt-1">{location.CITY}, {location.STATE}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm font-bold text-muted-foreground">STATUS</span>
@@ -179,8 +136,7 @@ export default function LocationDetailPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Location Info Card */}
-          <Card className="shadow-sm border-border">
+          <Card className="shadow-sm border-border bg-card">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Store Details</CardTitle>
             </CardHeader>
@@ -192,7 +148,6 @@ export default function LocationDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
           <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="shadow-sm border-border bg-card flex flex-col justify-center">
               <CardContent className="p-5">
@@ -200,24 +155,21 @@ export default function LocationDetailPage() {
                 <p className="text-2xl font-black text-foreground">${scorecard?.TOTAL_REVENUE.toLocaleString() || totalRevenue.toLocaleString()}</p>
               </CardContent>
             </Card>
-            
             <Card className="shadow-sm border-border bg-card flex flex-col justify-center">
               <CardContent className="p-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Avg Rating</p>
                 <p className="text-2xl font-black text-foreground flex items-baseline gap-1">
-                  {scorecard ? fmtFixed(scorecard.AVG_RATING, 1) : "—"}
+                  {scorecard && scorecard.AVG_RATING > 0 ? fmtFixed(scorecard.AVG_RATING, 1) : "—"}
                   <span className="text-amber-500 text-xl">★</span>
                 </p>
               </CardContent>
             </Card>
-
             <Card className="shadow-sm border-border bg-card flex flex-col justify-center">
               <CardContent className="p-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Total Orders</p>
                 <p className="text-2xl font-black text-foreground">{totalOrders.toLocaleString()}</p>
               </CardContent>
             </Card>
-
             <Card className="shadow-sm border-destructive/20 bg-destructive/5 flex flex-col justify-center">
               <CardContent className="p-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-destructive mb-1 flex items-center gap-1">
@@ -229,74 +181,46 @@ export default function LocationDetailPage() {
           </div>
         </div>
 
-        {/* Charts */}
+        {/* Date Filter */}
+        <Card className="shadow-sm border-border bg-card">
+          <CardHeader className="pb-4 border-b border-border/50">
+            <CardTitle className="text-base font-bold">Time Period</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <DateFilter selectedRange={dateRange} onRangeChange={setDateRange} />
+          </CardContent>
+        </Card>
+
         {salesTime.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Area Chart - Sales Trend */}
-            <Card className="shadow-sm border-border">
-              <CardHeader className="pb-6">
+            <Card className="shadow-sm border-border bg-card">
+              <CardHeader className="pb-6 border-b border-border/50">
                 <CardTitle className="text-base font-bold">Gross Sales Trajectory</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <ResponsiveContainer width="100%" height={280}>
                   <AreaChart data={salesTime} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis 
-                      dataKey="SALE_DATE" 
-                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} 
-                      tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      dy={10} 
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} 
-                      tickFormatter={(v) => `$${v/1000}k`} 
-                      axisLine={false} 
-                      tickLine={false} 
-                    />
-                    <Tooltip 
-                      cursor={{fill: 'var(--muted)'}} 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                      formatter={(v) => [`$${Number(v).toLocaleString()}`, "Revenue"]} 
-                      labelFormatter={(v) => new Date(v).toLocaleDateString()} 
-                    />
+                    <XAxis dataKey="SALE_DATE" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} axisLine={false} tickLine={false} dy={10} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `$${v/1000}k`} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'var(--muted)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v) => [`$${Number(v).toLocaleString()}`, "Revenue"]} labelFormatter={(v) => new Date(v).toLocaleDateString()} />
                     <Area type="monotone" dataKey="TOTAL" stroke="var(--chart-1)" strokeWidth={3} fill="var(--chart-1)" fillOpacity={0.15} />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Stacked Bar Chart - Revenue by Order Type */}
-            <Card className="shadow-sm border-border">
-              <CardHeader className="pb-6">
+            <Card className="shadow-sm border-border bg-card">
+              <CardHeader className="pb-6 border-b border-border/50">
                 <CardTitle className="text-base font-bold">Daily Revenue by Order Type</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={salesTime} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis 
-                      dataKey="SALE_DATE" 
-                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} 
-                      tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} 
-                      axisLine={false} 
-                      tickLine={false} 
-                      dy={10} 
-                    />
-                    <YAxis 
-                      tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} 
-                      tickFormatter={(v) => `$${v/1000}k`} 
-                      axisLine={false} 
-                      tickLine={false} 
-                    />
-                    <Tooltip 
-                      cursor={{fill: 'var(--muted)'}} 
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
-                      formatter={(v) => [`$${Number(v).toLocaleString()}`, ""]} 
-                      labelFormatter={(v) => new Date(v).toLocaleDateString()} 
-                    />
+                    <XAxis dataKey="SALE_DATE" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => new Date(v).toLocaleDateString("en-US", { month: "short", day: "numeric" })} axisLine={false} tickLine={false} dy={10} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `$${v/1000}k`} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'var(--muted)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v) => [`$${Number(v).toLocaleString()}`, ""]} labelFormatter={(v) => new Date(v).toLocaleDateString()} />
                     <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }} />
                     <Bar dataKey="DINE_IN" stackId="a" fill="var(--chart-1)" name="Dine-In" />
                     <Bar dataKey="TAKEOUT" stackId="a" fill="var(--chart-2)" name="Takeout" />
@@ -305,16 +229,12 @@ export default function LocationDetailPage() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-
           </div>
         )}
 
-        {/* Data Tables section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          
-          {/* Inventory Summary */}
           {inventory.length > 0 && (
-            <Card className="shadow-sm border-border">
+            <Card className="shadow-sm border-border bg-card">
               <CardHeader className="border-b border-border/50 pb-4">
                 <CardTitle className="text-base font-bold">Inventory Shrinkage Matrix</CardTitle>
               </CardHeader>
@@ -332,20 +252,10 @@ export default function LocationDetailPage() {
                     <tbody>
                       {inventory.map((item) => (
                         <tr key={item.CATEGORY} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                          <td className="py-3 px-5 font-medium capitalize text-foreground">
-                            {item.CATEGORY.replace("_", " ")}
-                          </td>
-                          <td className="text-right py-3 px-5 text-muted-foreground">
-                            {item.TOTAL_UNITS_WASTED.toLocaleString()} u
-                          </td>
-                          <td className="text-right py-3 px-5">
-                            <Badge variant={item.WASTE_PERCENTAGE > 5 ? "destructive" : "secondary"}>
-                              {fmtFixed(item.WASTE_PERCENTAGE, 1)}%
-                            </Badge>
-                          </td>
-                          <td className="text-right py-3 px-5 font-semibold text-foreground">
-                            ${item.WASTE_COST_TOTAL.toLocaleString()}
-                          </td>
+                          <td className="py-3 px-5 font-medium capitalize text-foreground">{item.CATEGORY.replace("_", " ")}</td>
+                          <td className="text-right py-3 px-5 text-muted-foreground">{item.TOTAL_UNITS_WASTED.toLocaleString()} u</td>
+                          <td className="text-right py-3 px-5"><Badge variant={item.WASTE_PERCENTAGE > 5 ? "destructive" : "secondary"}>{fmtFixed(item.WASTE_PERCENTAGE, 1)}%</Badge></td>
+                          <td className="text-right py-3 px-5 font-semibold text-foreground">${item.WASTE_COST_TOTAL.toLocaleString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -355,9 +265,8 @@ export default function LocationDetailPage() {
             </Card>
           )}
 
-          {/* Recent Reviews */}
           {reviews.length > 0 ? (
-            <Card className="shadow-sm border-border">
+            <Card className="shadow-sm border-border bg-card">
               <CardHeader className="border-b border-border/50 pb-4">
                 <CardTitle className="text-base font-bold">Latest Customer Feedback</CardTitle>
               </CardHeader>
@@ -368,51 +277,31 @@ export default function LocationDetailPage() {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <p className="font-semibold text-foreground">{review.CUSTOMER_NAME}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(review.REVIEW_DATE).toLocaleDateString()}
-                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{new Date(review.REVIEW_DATE).toLocaleDateString()}</p>
                         </div>
-                        <Badge variant={Number(review.RATING) >= 4 ? "default" : Number(review.RATING) >= 3 ? "secondary" : "destructive"}>
-                          {fmtFixed(review.RATING, 1)} ★
-                        </Badge>
+                        <Badge variant={Number(review.RATING) >= 4 ? "default" : Number(review.RATING) >= 3 ? "secondary" : "destructive"}>{fmtFixed(review.RATING, 1)} ★</Badge>
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {review.REVIEW_TEXT}
-                      </p>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{review.REVIEW_TEXT}</p>
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <Card className="shadow-sm border-border">
-              <CardContent className="py-12 text-center text-muted-foreground">
-                No customer reviews available yet.
-              </CardContent>
+            <Card className="shadow-sm border-border bg-card">
+              <CardContent className="py-12 text-center text-muted-foreground">No customer reviews available yet.</CardContent>
             </Card>
           )}
         </div>
-
       </main>
     </div>
   );
 }
 
-// Helper component for info rows
-function InfoRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof MapPin;
-  label: string;
-  value: string;
-}) {
+function InfoRow({ icon: Icon, label, value }: { icon: typeof MapPin; label: string; value: string; }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="p-2 bg-primary/10 rounded-md shrink-0">
-        <Icon className="w-4 h-4 text-primary" />
-      </div>
+      <div className="p-2 bg-primary/10 rounded-md shrink-0"><Icon className="w-4 h-4 text-primary" /></div>
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className="text-sm font-medium text-foreground mt-0.5">{value}</p>
