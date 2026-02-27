@@ -4,9 +4,10 @@ import TopBar from "@/components/TopBar";
 import { Menu } from "lucide-react";
 
 const VIEW_TITLES: Record<ViewSection, string> = {
-    overview: "Location Overview",
-    sales: "Sales Performance",
-    waste: "Inventory & Waste",
+    overview: "Dashboard Overview",
+    locations: "Location Directory",
+    sales: "Sales Analysis",
+    waste: "Waste Tracker",
 };
 
 interface DashboardLayoutProps {
