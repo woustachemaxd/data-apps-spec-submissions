@@ -168,9 +168,9 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
             const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
             const prompt = `Given this sample revenue trend data over time: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the overall pattern and any notable insights.`;
             const content = await askCortex(prompt);
-            setRevenueInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setRevenueInsight({ loading: false, error: err.message, content: null });
+            setRevenueInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setRevenueInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown error", content: null });
         }
     };
 
@@ -191,9 +191,9 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
             const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
             const prompt = `Given this sample ${chartType} breakdown data across different channels: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the pattern and notable insights.`;
             const content = await askCortex(prompt);
-            setOrdersInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setOrdersInsight({ loading: false, error: err.message, content: null });
+            setOrdersInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setOrdersInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown error", content: null });
         }
     };
 
