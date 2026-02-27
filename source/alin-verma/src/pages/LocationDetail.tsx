@@ -34,6 +34,7 @@ import {
   Clock,
   AlertTriangle,
   GitCompare,
+  Calendar,
 } from "lucide-react";
 import type {
   LocationScore,
@@ -41,9 +42,10 @@ import type {
   CustomerReview,
   InventoryRecord,
   InventorySummaryItem,
+  DateRange,
 } from "@/types";
 import { WASTE_THRESHOLD } from "@/types";
-// import { Chatbot } from "@/components/Chatbot"; // TODO: Enable after Snowflake Cortex is configured
+import { Chatbot } from "@/components/Chatbot";
 
 interface LocationDetailProps {
   locationScore: LocationScore;
@@ -54,6 +56,8 @@ interface LocationDetailProps {
   darkMode: boolean;
   setDarkMode: (value: boolean) => void;
   onCompare: (location: LocationScore) => void;
+  dateRange: DateRange;
+  setDateRange: (range: DateRange) => void;
 }
 
 export function LocationDetail({
@@ -65,6 +69,8 @@ export function LocationDetail({
   darkMode,
   setDarkMode,
   onCompare,
+  dateRange,
+  setDateRange,
 }: LocationDetailProps) {
   const { location } = locationScore;
 
@@ -138,7 +144,28 @@ export function LocationDetail({
               <ChevronLeft className="h-4 w-4" />
               Back to Dashboard
             </Button>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Date Range Filter */}
+              <div className="hidden sm:flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <input
+                  type="date"
+                  value={dateRange.start}
+                  onChange={(e) =>
+                    setDateRange({ ...dateRange, start: e.target.value })
+                  }
+                  className="bg-background border rounded px-2 py-1 text-sm"
+                />
+                <span className="text-muted-foreground">to</span>
+                <input
+                  type="date"
+                  value={dateRange.end}
+                  onChange={(e) =>
+                    setDateRange({ ...dateRange, end: e.target.value })
+                  }
+                  className="bg-background border rounded px-2 py-1 text-sm"
+                />
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -470,8 +497,8 @@ export function LocationDetail({
         </Card>
       </main>
 
-      {/* AI Chatbot - TODO: Enable after Snowflake Cortex is configured */}
-      {/* <Chatbot /> */}
+      {/* AI Chatbot */}
+      <Chatbot />
     </div>
   );
 }
