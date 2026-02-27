@@ -2,11 +2,12 @@ import {
     LayoutDashboard,
     TrendingUp,
     PackageOpen,
+    MapPin,
     ChevronLeft,
     ChevronRight,
 } from "lucide-react";
 
-export type ViewSection = "overview" | "sales" | "waste";
+export type ViewSection = "overview" | "locations" | "sales" | "waste";
 
 interface SidebarProps {
     activeView: ViewSection;
@@ -17,6 +18,7 @@ interface SidebarProps {
 
 const NAV_ITEMS: { id: ViewSection; label: string; icon: typeof LayoutDashboard }[] = [
     { id: "overview", label: "Overview", icon: LayoutDashboard },
+    { id: "locations", label: "Locations", icon: MapPin },
     { id: "sales", label: "Sales", icon: TrendingUp },
     { id: "waste", label: "Waste", icon: PackageOpen },
 ];
@@ -57,7 +59,7 @@ export default function Sidebar({
             {/* Version tag */}
             {!collapsed && (
                 <div className="px-4 pt-2 pb-1">
-                    <span className="bp-spec text-[8px] text-sidebar-foreground/30">v2.4.0_OP_DASH</span>
+                    <span className="bp-spec text-[8px] text-sidebar-foreground/30">OPERATIONS v2.4</span>
                 </div>
             )}
 
