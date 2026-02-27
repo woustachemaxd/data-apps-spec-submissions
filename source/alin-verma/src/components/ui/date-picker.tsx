@@ -52,7 +52,6 @@ export function DatePicker({
               onDateChange(format(day, "yyyy-MM-dd"))
             }
           }}
-          initialFocus
         />
       </PopoverContent>
     </Popover>
