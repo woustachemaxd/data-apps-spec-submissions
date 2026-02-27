@@ -351,6 +351,20 @@
       background: oklch(0.60 0.18 60);
       color: #fff;
     }
+
+    .badge-broken {
+      background: oklch(0.55 0.15 25);
+      color: #fff;
+    }
+
+    .card.card-broken {
+      opacity: 0.6;
+      border-color: oklch(0.55 0.15 25 / 0.4);
+    }
+
+    .card.card-broken:hover {
+      border-color: oklch(0.55 0.15 25 / 0.6);
+    }
   </style>
 </head>
 <body>
@@ -499,9 +513,16 @@
           return;
         }
 
-        // Fetch commit metadata for all dirs in parallel
-        const commitData = await Promise.all(dirs.map(d => fetchCommitInfo(d.name)));
-        const enriched = dirs.map((d, i) => ({ ...d, commit: commitData[i] }));
+        // Fetch commit metadata and health checks in parallel
+        const [commitData, healthData] = await Promise.all([
+          Promise.all(dirs.map(d => fetchCommitInfo(d.name))),
+          Promise.all(dirs.map(d =>
+            fetch(`${BASE_URL}/submission/${d.name}/`, { method: 'HEAD' })
+              .then(r => r.ok)
+              .catch(() => false)
+          ))
+        ]);
+        const enriched = dirs.map((d, i) => ({ ...d, commit: commitData[i], healthy: healthData[i] }));
 
         // Sort by latest commit date (newest first), fallback to name
         enriched.sort((a, b) => {
