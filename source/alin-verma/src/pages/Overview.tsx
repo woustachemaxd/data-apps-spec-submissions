@@ -4,7 +4,6 @@ import {
   Star,
   Trash2,
   AlertTriangle,
-  TrendingUp,
   MessageSquare,
 } from "lucide-react";
 import {
