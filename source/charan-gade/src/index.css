@@ -1,0 +1,134 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Background remains untouched */
+  --background: #f0f9ff; 
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0284c7; 
+  --primary-foreground: #ffffff;
+  --secondary: #e0f2fe; 
+  --secondary-foreground: #0369a1; 
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f43f5e; 
+  --accent-foreground: #ffffff;
+  
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #ffffff;
+  --ring: #38bdf8;
+  
+  --chart-1: #0284c7; 
+  --chart-2: #8b5cf6; 
+  --chart-3: #f43f5e; 
+  --chart-4: #10b981; 
+  --chart-5: #f59e0b; 
+  
+  --radius: 0.75rem; 
+
+  /* HIGHLIGHT: Distinct card colors with great contrast */
+  --card-1-bg: #e0f2fe; /* Sky */
+  --card-1-text: #0369a1;
+  
+  --card-2-bg: #f3e8ff; /* Purple */
+  --card-2-text: #6b21a8;
+  
+  --card-3-bg: #ffe4e6; /* Rose */
+  --card-3-text: #be123c;
+  
+  --card-4-bg: #dcfce7; /* Green */
+  --card-4-text: #15803d;
+}
+
+.dark {
+  /* Deep Night Mode */
+  --background: #020617; 
+  --foreground: #f8fafc;
+  --card: #0f172a; 
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
+  --primary: #38bdf8; 
+  --primary-foreground: #020617;
+  --secondary: #1e293b;
+  --secondary-foreground: #e0f2fe;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #fb7185; 
+  --accent-foreground: #020617;
+  
+  --destructive: #f87171;
+  --destructive-foreground: #020617;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.05);
+  --ring: #38bdf8;
+  
+  --chart-1: #38bdf8; 
+  --chart-2: #a78bfa; 
+  --chart-3: #fb7185; 
+  --chart-4: #34d399; 
+  --chart-5: #fbbf24; 
+
+  /* HIGHLIGHT: Dark mode transparent tints */
+  --card-1-bg: rgba(2, 132, 199, 0.15);
+  --card-1-text: #7dd3fc;
+  
+  --card-2-bg: rgba(147, 51, 234, 0.15);
+  --card-2-text: #d8b4fe;
+  
+  --card-3-bg: rgba(225, 29, 72, 0.15);
+  --card-3-text: #fda4af;
+  
+  --card-4-bg: rgba(22, 163, 74, 0.15);
+  --card-4-text: #86efac;
+}
+
+@theme inline {
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply font-sans bg-background text-foreground selection:bg-primary/20;
+  }
+  html {
+    @apply font-sans;
+  }
+}
