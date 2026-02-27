@@ -12,6 +12,7 @@ import {
     ChevronUp,
     ChevronDown,
     GitCompareArrows,
+    Info,
     X,
 } from "lucide-react";
 
@@ -187,6 +188,20 @@ export default function LocationScorecard({ onLocationSelect }: LocationScorecar
                 </div>
             </div>
 
+            {/* Hints (shown when nothing is selected) */}
+            {comparisonLocationIds.length === 0 && (
+                <div className="flex flex-col gap-1 text-[10px] text-muted-foreground uppercase tracking-[0.15em]">
+                    <div className="flex items-center gap-2">
+                        <GitCompareArrows size={12} className="text-muted-foreground/60" />
+                        <span>Use the checkboxes to compare up to 3 locations side-by-side on the Sales page</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Info size={12} className="text-muted-foreground/60" />
+                        <span>Click a location row to view its detailed breakdown</span>
+                    </div>
+                </div>
+            )}
+
             {/* Comparison mode banner */}
             {comparisonLocationIds.length > 0 && (
                 <div className="flex items-center gap-3 text-xs bg-primary/5 border border-primary/20 px-4 py-2.5">
@@ -252,7 +267,14 @@ export default function LocationScorecard({ onLocationSelect }: LocationScorecar
                     <table className="w-full text-xs">
                         <thead>
                             <tr className="border-b border-border text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
-                                <th className="text-left px-4 py-3 font-medium w-8"></th>
+                                <th className="text-left px-4 py-3 font-medium w-8">
+                                    <div className="relative group">
+                                        <Info size={11} className="text-muted-foreground/50 group-hover:text-primary transition-colors cursor-help" />
+                                        <div className="absolute left-0 top-full mt-1 z-50 w-52 px-3 py-2 bg-background border border-border shadow-lg text-[10px] text-muted-foreground normal-case tracking-normal leading-relaxed opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity duration-150">
+                                            Select up to 3 locations to compare their revenue and order breakdown charts on the <span className="text-primary font-semibold">Sales</span> page.
+                                        </div>
+                                    </div>
+                                </th>
                                 <th className="text-left px-4 py-3 font-medium">
                                     <SortHeader label="Location" sortKey="name" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
                                 </th>
