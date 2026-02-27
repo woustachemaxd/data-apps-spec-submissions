@@ -3,7 +3,9 @@ import { useSales } from "@/hooks/useSales";
 import { useLocations } from "@/hooks/useLocations";
 import { useFilters } from "@/contexts/FilterContext";
 import { formatShortDate } from "@/lib/dateUtils";
-import { Download } from "lucide-react";
+import { Download, Sparkles } from "lucide-react";
+import { askCortex } from "@/lib/snowflake";
+import AiInsightPanel from "@/components/AiInsightPanel";
 import {
     AreaChart,
     Area,
@@ -44,6 +46,8 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
         comparisonLocationIds.length > 0 ? comparisonLocationIds : undefined
     );
     const [chartType, setChartType] = useState<"revenue" | "orders">("revenue");
+    const [revenueInsight, setRevenueInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
+    const [ordersInsight, setOrdersInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
     const revenueChartRef = useRef<HTMLDivElement>(null);
     const orderChartRef = useRef<HTMLDivElement>(null);
 
@@ -179,6 +183,52 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
         }));
     }, [comparisonLocationIds, locationNames]);
 
+    const handleRevenueInsight = async () => {
+        setRevenueInsight({ loading: true, error: null, content: null });
+        try {
+            const dataLength = revenueByDate.length;
+            const sampleSize = 10;
+            const step = Math.max(1, Math.floor(dataLength / sampleSize));
+            const sampled = revenueByDate.filter((_, i) => i % step === 0 || i === dataLength - 1).map(d => {
+                const row: Record<string, string | number> = { d: d.date as string };
+                locationNames.forEach(name => {
+                    const val = (d as any)[name];
+                    if (val !== undefined) row[name.substring(0, 5)] = Math.round(val);
+                });
+                return row;
+            });
+            const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
+            const prompt = `Given this sample revenue trend data over time: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the overall pattern and any notable insights.`;
+            const content = await askCortex(prompt);
+            setRevenueInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setRevenueInsight({ loading: false, error: err.message, content: null });
+        }
+    };
+
+    const handleOrdersInsight = async () => {
+        setOrdersInsight({ loading: true, error: null, content: null });
+        try {
+            const dataLength = orderTypeData.length;
+            const sampleSize = 10;
+            const step = Math.max(1, Math.floor(dataLength / sampleSize));
+            const sampled = orderTypeData.filter((_, i) => i % step === 0 || i === dataLength - 1).map(d => {
+                const row: Record<string, string | number> = { d: d.date as string };
+                barConfigs.forEach(c => {
+                    const val = (d as any)[c.dataKey];
+                    if (val !== undefined) row[c.dataKey.substring(0, 5)] = Math.round(val);
+                });
+                return row;
+            });
+            const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
+            const prompt = `Given this sample ${chartType} breakdown data across different channels: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the pattern and notable insights.`;
+            const content = await askCortex(prompt);
+            setOrdersInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setOrdersInsight({ loading: false, error: err.message, content: null });
+        }
+    };
+
     const chartColors = [
         "var(--color-chart-1)",
         "var(--color-chart-3)",
@@ -231,6 +281,15 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                     </div>
                     <div className="flex items-center gap-1">
                         <button
+                            onClick={handleRevenueInsight}
+                            disabled={revenueInsight.loading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Sparkles size={10} className={revenueInsight.loading ? "animate-pulse" : ""} />
+                            Explain Chart
+                        </button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <button
                             onClick={() => exportChartPNG(revenueChartRef, "revenue_trend")}
                             className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
                         >
@@ -251,6 +310,12 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                     </div>
                 </div>
                 <div className="p-4">
+                    <AiInsightPanel
+                        isLoading={revenueInsight.loading}
+                        error={revenueInsight.error}
+                        content={revenueInsight.content}
+                        className="mb-4"
+                    />
                     <div ref={revenueChartRef}>
                         <ResponsiveContainer width="100%" height={320}>
                             <AreaChart data={revenueByDate} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -282,16 +347,20 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                                     formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, undefined]}
                                 />
                                 {locationNames.length > 1 && <Legend wrapperStyle={{ color: "var(--color-foreground)" }} />}
-                                {locationNames.map((name, i) => (
-                                    <Area
-                                        key={name}
-                                        type="monotone"
-                                        dataKey={name}
-                                        stroke={chartColors[i % chartColors.length]}
-                                        fill={`url(#grad-${i})`}
-                                        strokeWidth={2}
-                                    />
-                                ))}
+                                {locationNames.map((name, i) => {
+                                    const dashPatterns = ["0", "8 4", "3 3"];
+                                    return (
+                                        <Area
+                                            key={name}
+                                            type="monotone"
+                                            dataKey={name}
+                                            stroke={chartColors[i % chartColors.length]}
+                                            fill={`url(#grad-${i})`}
+                                            strokeWidth={2}
+                                            strokeDasharray={locationNames.length > 1 ? dashPatterns[i % dashPatterns.length] : undefined}
+                                        />
+                                    );
+                                })}
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
@@ -333,6 +402,15 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                     </div>
                     <div className="flex items-center gap-1">
                         <button
+                            onClick={handleOrdersInsight}
+                            disabled={ordersInsight.loading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <Sparkles size={10} className={ordersInsight.loading ? "animate-pulse" : ""} />
+                            Explain Chart
+                        </button>
+                        <div className="w-px h-4 bg-border mx-1" />
+                        <button
                             onClick={() => exportChartPNG(orderChartRef, "order_breakdown")}
                             className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
                         >
@@ -354,6 +432,12 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                     </div>
                 </div>
                 <div className="p-4">
+                    <AiInsightPanel
+                        isLoading={ordersInsight.loading}
+                        error={ordersInsight.error}
+                        content={ordersInsight.content}
+                        className="mb-4"
+                    />
                     <div ref={orderChartRef}>
                         <ResponsiveContainer width="100%" height={280}>
                             <BarChart data={orderTypeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
