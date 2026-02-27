@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 { font-size: 3rem; margin-bottom: 20px; }
+        p { font-size: 1.2rem; margin-bottom: 30px; }
+        .status {
+            background: rgba(0, 255, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(0, 255, 0, 0.5);
+            margin-bottom: 30px;
+        }
+        .links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .link-btn {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        .link-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Server Test Page</h1>
+        <div class="status">
+            <strong>Server Status:</strong> Working!
+        </div>
+        <p>If you can see this page, the server is working correctly.</p>
+        <p>The React application might have a JavaScript error preventing it from loading.</p>
+        
+        <div class="links">
+            <a href="/" class="link-btn">Main Dashboard</a>
+            <a href="/locations" class="link-btn">Locations</a>
+            <a href="/analytics" class="link-btn">Analytics</a>
+            <a href="/settings" class="link-btn">Settings</a>
+            <a href="/basic-test" class="link-btn">Basic Test</a>
+        </div>
+        
+        <p style="margin-top: 30px; font-size: 0.9rem; opacity: 0.8;">
+            If the React pages are still blank, there might be a JavaScript error.
+            Try opening the browser console (F12) to see if there are any errors.
+        </p>
+    </div>
+</body>
+</html>
