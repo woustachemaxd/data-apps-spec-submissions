@@ -33,7 +33,7 @@ export default function TopBar({ title, onLocationSelect }: TopBarProps) {
     }, [searchOpen]);
 
     return (
-        <header className="h-14 border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 gap-4">
+        <header className="h-14 border-b border-border bg-background/80 backdrop-blur-sm flex items-center justify-between px-4 md:px-6 gap-4 relative z-50">
             {/* Left: section title */}
             <div>
                 <h1 className="text-sm font-semibold uppercase tracking-[0.15em]">{title}</h1>
