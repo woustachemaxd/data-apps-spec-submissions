@@ -129,7 +129,7 @@ export interface AskLlmResponse {
  * Helper to call the Cortex ASK_LLM stored procedure.
  * Parses the nested JSON response and returns the full metadata object.
  */
-export async function askCortex(prompt: string, model: string = 'llama3.1-8b'): Promise<AskLlmResponse> {
+export async function askCortex(prompt: string, model: string = 'llama3.1-70b'): Promise<AskLlmResponse> {
   // Sanitize single quotes for the SQL literal
   const sanitizedPrompt = prompt.replace(/'/g, "''");
 
