@@ -4,14 +4,25 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Loader2, Database } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Database, Code2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { askCortex } from "@/lib/cortex";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { generateSQL } from "@/lib/cortex";
+import { querySnowflake } from "@/lib/snowflake";
 
 interface Message {
   id: string;
-  type: "user" | "assistant" | "error" | "sql";
+  type: "user" | "assistant" | "error" | "sql" | "table";
   content: string;
+  data?: Record<string, unknown>[];
   timestamp: Date;
 }
 
@@ -20,6 +31,7 @@ export function Chatbot() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExecutingSQL, setIsExecutingSQL] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -54,37 +66,55 @@ export function Chatbot() {
     setIsLoading(true);
 
     try {
-      const result = await askCortex(userMessage.content);
+      // Step 1: Generate SQL query
+      const { sql, error } = await generateSQL(userMessage.content);
 
-      if (result.success && result.response) {
-        // Add the AI response
-        const assistantMessage: Message = {
-          id: generateId(),
-          type: "assistant",
-          content: result.response,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-      } else {
-        // Error message
+      if (!sql) {
         const errorMessage: Message = {
           id: generateId(),
           type: "error",
-          content: result.error || "Failed to process your question. Please try again.",
+          content: error || "Failed to generate SQL query",
           timestamp: new Date(),
         };
         setMessages(prev => [...prev, errorMessage]);
+        setIsLoading(false);
+        return;
       }
+
+      // Show the SQL immediately
+      const sqlMessage: Message = {
+        id: generateId(),
+        type: "sql",
+        content: sql,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, sqlMessage]);
+      setIsLoading(false);
+      setIsExecutingSQL(true);
+
+      // Step 2: Execute the SQL query
+      const data = await querySnowflake<Record<string, unknown>>(sql);
+      setIsExecutingSQL(false);
+
+      // Step 3: Show results as table
+      const tableMessage: Message = {
+        id: generateId(),
+        type: "table",
+        content: data.length === 0 ? "No results found" : `Found ${data.length} results`,
+        data: data,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, tableMessage]);
     } catch (error) {
+      setIsLoading(false);
+      setIsExecutingSQL(false);
       const errorMessage: Message = {
         id: generateId(),
         type: "error",
-        content: "An unexpected error occurred. Please try again.",
+        content: error instanceof Error ? error.message : "An unexpected error occurred",
         timestamp: new Date(),
       };
       setMessages(prev => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
     }
   }, [input, isLoading]);
 
@@ -107,6 +137,19 @@ export function Chatbot() {
   const handleSuggestionClick = (suggestion: string) => {
     setInput(suggestion);
     inputRef.current?.focus();
+  };
+
+  // Format cell value for display
+  const formatCellValue = (value: unknown): string => {
+    if (value === null || value === undefined) return "-";
+    if (typeof value === "number") {
+      // Check if it looks like revenue (large number)
+      if (value > 1000) {
+        return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      }
+      return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+    return String(value);
   };
 
   return (
@@ -181,25 +224,62 @@ export function Chatbot() {
                 className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm
+                  className={`max-w-[95%] rounded-2xl px-4 py-2.5 text-sm
                     ${message.type === "user" 
                       ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-br-md" 
                       : message.type === "error"
                       ? "bg-destructive/10 text-destructive border border-destructive/20 rounded-bl-md"
                       : message.type === "sql"
-                      ? "bg-muted/50 font-mono text-xs rounded-bl-md overflow-x-auto"
+                      ? "bg-muted/50 rounded-bl-md w-full"
+                      : message.type === "table"
+                      ? "bg-muted/30 rounded-bl-md w-full overflow-hidden"
                       : "bg-muted rounded-bl-md"
                     }`}
                 >
                   {message.type === "sql" ? (
-                    <details className="cursor-pointer">
-                      <summary className="text-xs text-muted-foreground hover:text-foreground">
-                        View generated SQL
+                    <details className="cursor-pointer" open>
+                      <summary className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                        <Code2 className="h-3 w-3" />
+                        Generated SQL
                       </summary>
-                      <pre className="mt-2 text-xs whitespace-pre-wrap break-all">
+                      <pre className="mt-2 text-xs font-mono whitespace-pre-wrap break-all bg-background/50 p-2 rounded">
                         {message.content}
                       </pre>
                     </details>
+                  ) : message.type === "table" ? (
+                    message.data && message.data.length > 0 ? (
+                      <div className="overflow-x-auto -mx-4 -mb-2.5 -mt-1">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {Object.keys(message.data[0]).map((col) => (
+                                <TableHead key={col} className="text-xs font-semibold whitespace-nowrap">
+                                  {col}
+                                </TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {message.data.slice(0, 10).map((row, i) => (
+                              <TableRow key={i}>
+                                {Object.values(row).map((value, j) => (
+                                  <TableCell key={j} className="text-xs whitespace-nowrap">
+                                    {formatCellValue(value)}
+                                  </TableCell>
+                                ))}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {message.data.length > 10 && (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            ... and {message.data.length - 10} more rows
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No results found</p>
+                    )
                   ) : (
                     <pre className="whitespace-pre-wrap font-sans break-words">
                       {message.content}
@@ -210,13 +290,32 @@ export function Chatbot() {
             ))
           )}
 
-          {/* Loading indicator */}
+          {/* Loading indicator for SQL generation */}
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Thinking...</span>
+                  <span>Generating SQL...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Loading indicator for SQL execution */}
+          {isExecutingSQL && (
+            <div className="flex justify-start">
+              <div className="bg-muted/30 rounded-2xl rounded-bl-md p-3 w-full max-w-[95%]">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Executing query...</span>
+                  </div>
+                  <div className="space-y-1">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-3/4" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -235,14 +334,14 @@ export function Chatbot() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about your data..."
-              disabled={isLoading}
+              disabled={isLoading || isExecutingSQL}
               className="flex-1 bg-background border rounded-full px-4 py-2 text-sm
                 focus:outline-none focus:ring-2 focus:ring-primary/50
                 disabled:opacity-50"
             />
             <Button
               onClick={handleSend}
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || isExecutingSQL}
               size="icon"
               className="rounded-full w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 
                 hover:from-blue-600 hover:to-purple-700"
