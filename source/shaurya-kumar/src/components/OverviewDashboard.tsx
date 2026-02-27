@@ -3,6 +3,7 @@ import { useScorecard } from "@/hooks/useScorecard";
 import { useSales } from "@/hooks/useSales";
 import { useLocations } from "@/hooks/useLocations";
 import { useInventory } from "@/hooks/useInventory";
+import { MondayMorningBriefing } from "./MondayMorningBriefing";
 import { formatShortDate } from "@/lib/dateUtils";
 import {
     AreaChart,
@@ -124,10 +125,14 @@ export default function OverviewDashboard({ onNavigateToLocations }: OverviewDas
     return (
         <div className="space-y-6">
             {/* Page header spec */}
-            <div className="flex items-center gap-3">
-                <span className="bp-spec">SYS_REF_01</span>
-                <span className="text-xs text-muted-foreground">Scale: 1:1000 USD</span>
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <span className="bp-spec">SYS_REF_01</span>
+                    <span className="text-xs text-muted-foreground">Scale: 1:1000 USD</span>
+                </div>
             </div>
+
+            <MondayMorningBriefing />
 
             {/* KPI Cards Row */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
