@@ -36,7 +36,7 @@ export default function Sidebar({
                             title={collapsed ? item.label : undefined}
                             key={item.id}
                             onClick={() => onTabChange(item.id)}
-                            className={`!h-12 !w-full rounded-2xl transition-all group relative !px-3 ${
+                            className={`!h-12 !w-full rounded-2xl transition-all group relative !px-3 !gap-3 ${
                                 collapsed ? "!justify-center" : "!justify-start"
                             } ${
                                 activeTab === item.id
@@ -44,7 +44,13 @@ export default function Sidebar({
                                     : "text-[var(--text-muted)] hover:bg-[var(--glass-bg)] hover:text-[var(--text-main)]"
                             }`}
                         >
-                            <span className="material-symbols-outlined w-5 text-[20px] text-center shrink-0">{item.icon}</span>
+                            <span className={`shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-lg border transition-colors ${
+                                activeTab === item.id
+                                    ? "border-white/30 bg-white/10"
+                                    : "border-[var(--border-color)] bg-[var(--bg-color)]"
+                            }`}>
+                                <span className="material-symbols-outlined text-[18px] leading-none">{item.icon}</span>
+                            </span>
                             {!collapsed && <span className="text-xs font-black tracking-tight uppercase">{item.label}</span>}
                             {!collapsed && item.count && (
                                 <span className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-full ${activeTab === item.id ? "bg-white/20" : "bg-[var(--glass-bg)] border border-[var(--border-color)]"
@@ -101,7 +107,6 @@ export default function Sidebar({
                         </div>
                         {!collapsed && <div className="flex-1">
                             <p className="text-[10px] font-black text-[var(--text-main)] truncate">Rishabh Mathur</p>
-                            <p className="text-[8px] font-black text-primary uppercase tracking-widest">Admin Manager</p>
                         </div>}
                         <span className="material-symbols-outlined text-[16px] text-[var(--text-muted)] hover:text-primary transition-colors cursor-pointer">settings</span>
                     </div>
