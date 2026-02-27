@@ -263,22 +263,25 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                                     ))}
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} interval={Math.max(0, Math.ceil(revenueByDate.length / 12) - 1)} />
                                 <YAxis
-                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }}
                                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                                 />
                                 <Tooltip
                                     contentStyle={{
                                         backgroundColor: "var(--color-popover)",
+                                        color: "var(--color-popover-foreground)",
                                         border: "1px solid var(--color-border)",
                                         borderRadius: "0",
                                         fontSize: "11px",
                                         fontFamily: "'JetBrains Mono', monospace",
                                     }}
+                                    labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                    itemStyle={{ color: "var(--color-popover-foreground)" }}
                                     formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, undefined]}
                                 />
-                                {locationNames.length > 1 && <Legend />}
+                                {locationNames.length > 1 && <Legend wrapperStyle={{ color: "var(--color-foreground)" }} />}
                                 {locationNames.map((name, i) => (
                                     <Area
                                         key={name}
@@ -355,9 +358,9 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                         <ResponsiveContainer width="100%" height={280}>
                             <BarChart data={orderTypeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} interval={Math.max(0, Math.ceil(orderTypeData.length / 12) - 1)} />
                                 <YAxis
-                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }}
                                     tickFormatter={(v) =>
                                         chartType === "revenue"
                                             ? `$${(v / 1000).toFixed(0)}k`
@@ -367,11 +370,14 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                                 <Tooltip
                                     contentStyle={{
                                         backgroundColor: "var(--color-popover)",
+                                        color: "var(--color-popover-foreground)",
                                         border: "1px solid var(--color-border)",
                                         borderRadius: "0",
                                         fontSize: "11px",
                                         fontFamily: "'JetBrains Mono', monospace",
                                     }}
+                                    labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                    itemStyle={{ color: "var(--color-popover-foreground)" }}
                                     formatter={(v?: number, name?: string) => {
                                         const displayName = isComparing && name?.includes("|")
                                             ? name.replace("|", " — ")
@@ -384,7 +390,7 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                                         ];
                                     }}
                                 />
-                                {!isComparing && <Legend />}
+                                {!isComparing && <Legend wrapperStyle={{ color: "var(--color-foreground)" }} />}
                                 {barConfigs.map((cfg) => (
                                     <Bar
                                         key={cfg.dataKey}
