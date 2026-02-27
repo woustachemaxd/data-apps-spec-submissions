@@ -365,6 +365,47 @@
     .card.card-broken:hover {
       border-color: oklch(0.55 0.15 25 / 0.6);
     }
+
+    /* Sort controls */
+    .sort-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .sort-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--bp-muted);
+      margin-right: 0.25rem;
+    }
+
+    .sort-btn {
+      font-family: inherit;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 0.3rem 0.65rem;
+      border: 1px solid oklch(0.70 0.08 250 / 0.3);
+      background: transparent;
+      color: var(--bp-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sort-btn:hover {
+      border-color: oklch(0.50 0.12 250 / 0.4);
+      color: var(--bp-ink);
+    }
+
+    .sort-btn.active {
+      border-color: var(--bp-accent);
+      background: oklch(0.50 0.12 250 / 0.08);
+      color: var(--bp-accent);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -524,35 +565,64 @@
         ]);
         const enriched = dirs.map((d, i) => ({ ...d, commit: commitData[i], healthy: healthData[i] }));
 
-        // Sort by latest commit date (newest first), fallback to name
-        enriched.sort((a, b) => {
-          const da = a.commit?.latestDate || '';
-          const db = b.commit?.latestDate || '';
-          if (da && db) return new Date(db) - new Date(da);
-          if (da) return -1;
-          if (db) return 1;
-          return a.name.localeCompare(b.name);
-        });
-
         const reviewed = getReviewed();
 
-        container.className = 'grid';
-        container.innerHTML = enriched
-          .map((d, i) => {
-            const c = d.commit;
-            let badgeHtml = '';
-            if (c) {
-              const stored = reviewed[d.name];
-              if (!stored) {
-                badgeHtml = '<div class="badge badge-new">NEW</div>';
-              } else if (stored.lastSeenCommitSha !== c.latestSha) {
-                badgeHtml = '<div class="badge badge-updated">UPDATED</div>';
-              }
+        // Store enriched data for re-sorting
+        window._submissions = enriched;
+        window._reviewed = reviewed;
+
+        // Insert sort bar
+        const sortBar = document.createElement('div');
+        sortBar.className = 'sort-bar';
+        sortBar.innerHTML = `
+          <span class="sort-label">Sort</span>
+          <button class="sort-btn active" data-sort="latest">Latest</button>
+          <button class="sort-btn" data-sort="alpha">A → Z</button>
+        `;
+        container.parentNode.insertBefore(sortBar, container);
+
+        sortBar.querySelectorAll('.sort-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            sortBar.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderCards(btn.dataset.sort);
+          });
+        });
+
+        function renderCards(sortMode) {
+          const sorted = [...window._submissions];
+          if (sortMode === 'alpha') {
+            sorted.sort((a, b) => a.name.localeCompare(b.name));
+          } else {
+            sorted.sort((a, b) => {
+              const da = a.commit?.latestDate || '';
+              const db = b.commit?.latestDate || '';
+              if (da && db) return new Date(db) - new Date(da);
+              if (da) return -1;
+              if (db) return 1;
+              return a.name.localeCompare(b.name);
+            });
+          }
+          container.className = 'grid';
+          container.innerHTML = sorted.map((d, i) => cardHtml(d, i, window._reviewed)).join('');
+          bindCardClicks();
+        }
+
+        function cardHtml(d, i, reviewed) {
+          const c = d.commit;
+          let badgeHtml = '';
+          if (c) {
+            const stored = reviewed[d.name];
+            if (!stored) {
+              badgeHtml = '<div class="badge badge-new">NEW</div>';
+            } else if (stored.lastSeenCommitSha !== c.latestSha) {
+              badgeHtml = '<div class="badge badge-updated">UPDATED</div>';
             }
-            const metaHtml = c
-              ? `<div class="card-meta"><span>${timeAgo(c.latestDate)}</span><span>${c.count} submission${c.count !== 1 ? 's' : ''}</span></div>`
-              : '';
-            return `
+          }
+          const metaHtml = c
+            ? `<div class="card-meta"><span>${timeAgo(c.latestDate)}</span><span>${c.count} submission${c.count !== 1 ? 's' : ''}</span></div>`
+            : '';
+          return `
             <a class="card" href="${BASE_URL}/submission/${d.name}/" data-name="${d.name}" data-sha="${c?.latestSha || ''}">
               <div class="card-spec">No. ${String(i + 1).padStart(2, '0')}</div>
               ${badgeHtml}
@@ -562,22 +632,22 @@
               <div class="corner-bl"></div>
               <div class="corner-br"></div>
               <div class="card-arrow">&#x2510;</div>
-            </a>
-          `;
-          }).join('');
+            </a>`;
+        }
 
-        // Mark as reviewed on click
-        container.querySelectorAll('.card').forEach(card => {
-          card.addEventListener('click', () => {
-            const name = card.dataset.name;
-            const sha = card.dataset.sha;
-            if (name && sha) {
-              const r = getReviewed();
-              r[name] = { lastSeenCommitSha: sha };
-              setReviewed(r);
-            }
+        function bindCardClicks() {
+          container.querySelectorAll('.card').forEach(card => {
+            card.addEventListener('click', () => {
+              const name = card.dataset.name;
+              const sha = card.dataset.sha;
+              if (name && sha) {
+                const r = getReviewed();
+                r[name] = { lastSeenCommitSha: sha };
+                setReviewed(r);
+              }
+            });
           });
-        });
+        }
 
         // Add count badge after section label
         const label = document.querySelector('.section-label');
@@ -585,8 +655,11 @@
           const badge = document.createElement('div');
           badge.className = 'count-badge';
           badge.textContent = `${dirs.length} submitted`;
-          label.parentNode.insertBefore(badge, container);
+          label.parentNode.insertBefore(badge, sortBar);
         }
+
+        // Initial render
+        renderCards('latest');
       } catch (err) {
         container.innerHTML = '<p class="empty">Failed to load submissions.</p>';
       }
