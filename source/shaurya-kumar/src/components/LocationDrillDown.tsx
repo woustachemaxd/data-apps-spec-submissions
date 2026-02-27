@@ -118,9 +118,9 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
             const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
             const prompt = `Given this daily revenue trend data for a single location: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the overall pattern and notable insights.`;
             const content = await askCortex(prompt);
-            setRevenueInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setRevenueInsight({ loading: false, error: err.message, content: null });
+            setRevenueInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setRevenueInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown error", content: null });
         }
     };
 
@@ -130,9 +130,9 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
             const contextStr = orderTypeSplit.map(d => `${d.name}:${d.value}`).join(', ');
             const prompt = `Given this revenue by order type breakdown for a single location: [${contextStr}], provide a concise insight (maximum 2 sentences) on what order channel is performing best.`;
             const content = await askCortex(prompt);
-            setOrdersInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setOrdersInsight({ loading: false, error: err.message, content: null });
+            setOrdersInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setOrdersInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown error", content: null });
         }
     };
 
@@ -481,13 +481,13 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                 <button
                                     onClick={() => {
                                         const headers = ["Category", "Received", "Wasted", "Waste %", "Cost"];
-                                        const rows = wasteSummary.map((w: Record<string, unknown>) =>
+                                        const rows = wasteSummary.map((w) =>
                                             [
                                                 String(w.category).replace("_", " & ").toUpperCase(),
-                                                w.totalReceived as number,
-                                                w.totalWasted as number,
+                                                w.totalReceived,
+                                                w.totalWasted,
                                                 `${w.wastePct}%`,
-                                                `$${(w.totalWasteCost as number).toLocaleString()}`
+                                                `$${w.totalWasteCost.toLocaleString()}`
                                             ]
                                         );
                                         exportCSV("location_inventory_waste_summary", headers, rows);
