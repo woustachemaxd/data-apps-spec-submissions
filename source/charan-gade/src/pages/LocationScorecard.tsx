@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
 import type { LocationScoreboard } from "@/lib/queries";
 import { getLocationScorecard } from "@/lib/queries";
+import DateFilter from "@/components/DateFilter";
 
 // Safe numeric formatter to avoid calling .toFixed on non-numeric values
 const fmtFixed = (v: unknown, digits = 1) => {
@@ -19,12 +20,15 @@ export default function LocationScorecardPage() {
   const [sortBy, setSortBy] = useState<"revenue" | "rating" | "trend">(
     "revenue"
   );
+  const [dateRange, setDateRange] = useState<"week" | "month" | "year" | "all">(
+    "month"
+  );
 
   useEffect(() => {
     async function fetchData() {
       try {
         setLoading(true);
-        const data = await getLocationScorecard();
+        const data = await getLocationScorecard(dateRange);
         console.debug("scorecard rows", data.length);
         setLocations(data);
         setError(null);
@@ -36,7 +40,7 @@ export default function LocationScorecardPage() {
       }
     }
     fetchData();
-  }, []);
+  }, [dateRange]);
 
   async function refresh() {
     try {
@@ -117,6 +121,12 @@ export default function LocationScorecardPage() {
               Sort by {option.charAt(0).toUpperCase() + option.slice(1)}
             </button>
           ))}
+        </div>
+
+        {/* Date Filter */}
+        <div className="bg-card border rounded-lg p-4">
+          <p className="text-sm font-medium mb-3">Time Period</p>
+          <DateFilter selectedRange={dateRange} onRangeChange={setDateRange} />
         </div>
 
         {/* Loading & Error States */}
