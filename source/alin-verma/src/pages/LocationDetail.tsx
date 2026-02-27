@@ -34,8 +34,8 @@ import {
   Clock,
   AlertTriangle,
   GitCompare,
-  Calendar,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import type {
   LocationScore,
   DailySale,
@@ -147,23 +147,20 @@ export function LocationDetail({
             <div className="flex items-center gap-3">
               {/* Date Range Filter */}
               <div className="hidden sm:flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, start: e.target.value })
+                <DatePicker
+                  date={dateRange.start}
+                  onDateChange={(date) =>
+                    setDateRange({ ...dateRange, start: date })
                   }
-                  className="bg-background border rounded px-2 py-1 text-sm"
+                  placeholder="Start date"
                 />
                 <span className="text-muted-foreground">to</span>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, end: e.target.value })
+                <DatePicker
+                  date={dateRange.end}
+                  onDateChange={(date) =>
+                    setDateRange({ ...dateRange, end: date })
                   }
-                  className="bg-background border rounded px-2 py-1 text-sm"
+                  placeholder="End date"
                 />
               </div>
               <Button
