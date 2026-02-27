@@ -313,9 +313,9 @@ export default function WasteTracker() {
                             <ResponsiveContainer width="100%" height={Math.max(200, wasteByLocation.length * 30)}>
                                 <BarChart data={wasteByLocation} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                                    <XAxis type="number" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={(v) => `${v}%`} domain={[0, "auto"]} />
-                                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} width={120} />
-                                    <Tooltip contentStyle={{ backgroundColor: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }} formatter={(v?: number) => [`${v ?? 0}%`, "Waste Rate"]} />
+                                    <XAxis type="number" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} domain={[0, "auto"]} />
+                                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} width={120} />
+                                    <Tooltip contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }} labelStyle={{ color: "var(--color-popover-foreground)" }} itemStyle={{ color: "var(--color-popover-foreground)" }} formatter={(v?: number) => [`${v ?? 0}%`, "Waste Rate"]} />
                                     <ReferenceLine x={WASTE_THRESHOLD} stroke="var(--color-destructive)" strokeDasharray="3 3" label={{ value: `${WASTE_THRESHOLD}%`, position: "top", fontSize: 9, fill: "var(--color-destructive)" }} />
                                     <Bar dataKey="wastePct" radius={[0, 0, 0, 0]}>
                                         {wasteByLocation.map((entry) => (
@@ -423,10 +423,12 @@ export default function WasteTracker() {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
-                                <YAxis tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={(v) => `$${v}`} />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} interval={Math.max(0, Math.ceil(dailyWasteCost.length / 12) - 1)} />
+                                <YAxis tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `$${v}`} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                    contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                    labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                    itemStyle={{ color: "var(--color-popover-foreground)" }}
                                     formatter={(v?: number) => [`$${(v ?? 0).toFixed(2)}`, "Waste Cost"]}
                                 />
                                 <Line type="monotone" dataKey="cost" stroke="var(--color-destructive)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
@@ -460,14 +462,20 @@ export default function WasteTracker() {
                                         outerRadius={85}
                                         paddingAngle={3}
                                         dataKey="value"
-                                        label={({ name, pct }: { name?: string; pct?: number }) => `${name ?? ""} ${pct ?? 0}%`}
+                                        label={({ name, pct, x, y }: { name?: string; pct?: number; x?: number; y?: number }) => (
+                                            <text x={x} y={y} fill="var(--color-foreground)" textAnchor="middle" dominantBaseline="central" fontSize={12} fontFamily="'JetBrains Mono', monospace">
+                                                {`${name ?? ""} ${pct ?? 0}%`}
+                                            </text>
+                                        )}
                                     >
                                         {categoryDistribution.map((_entry, idx) => (
                                             <Cell key={idx} fill={CATEGORY_COLORS[idx % CATEGORY_COLORS.length]} />
                                         ))}
                                     </Pie>
                                     <Tooltip
-                                        contentStyle={{ backgroundColor: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                        contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                        labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                        itemStyle={{ color: "var(--color-popover-foreground)" }}
                                         formatter={(v?: number, name?: string) => [`${(v ?? 0).toLocaleString()} units`, name]}
                                     />
                                 </PieChart>
@@ -494,10 +502,12 @@ export default function WasteTracker() {
                         <ResponsiveContainer width="100%" height={240}>
                             <BarChart data={utilizationEfficiency} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                                <XAxis type="number" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-                                <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} width={100} />
+                                <XAxis type="number" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
+                                <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} width={100} />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: "var(--color-popover)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                    contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                    labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                    itemStyle={{ color: "var(--color-popover-foreground)" }}
                                     formatter={(v?: number, name?: string) => [`${v ?? 0}%`, name === "usedPct" ? "Utilized" : "Wasted"]}
                                 />
                                 <Bar dataKey="usedPct" stackId="a" fill="var(--color-chart-3)" name="usedPct" radius={[0, 0, 0, 0]} />
