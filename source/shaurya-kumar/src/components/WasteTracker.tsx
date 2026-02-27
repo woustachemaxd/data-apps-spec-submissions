@@ -65,9 +65,9 @@ export default function WasteTracker() {
             const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
             const prompt = `Given this daily waste cost trend data: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the financial pattern and notable insights.`;
             const content = await askCortex(prompt);
-            setCostInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setCostInsight({ loading: false, error: err.message, content: null });
+            setCostInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setCostInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown Error", content: null });
         }
     };
 
@@ -77,9 +77,9 @@ export default function WasteTracker() {
             const contextStr = categoryDistribution.map(d => `${d.name}:${d.value} units (${d.pct}%)`).join(', ');
             const prompt = `Given this food waste category breakdown: [${contextStr}], provide a concise, maximum 2 sentence insight on the primary sources of waste.`;
             const content = await askCortex(prompt);
-            setCategoryInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setCategoryInsight({ loading: false, error: err.message, content: null });
+            setCategoryInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setCategoryInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown Error", content: null });
         }
     };
 
@@ -89,9 +89,9 @@ export default function WasteTracker() {
             const contextStr = wasteByLocation.slice(0, 5).map(d => `${d.name.substring(0, 5)}:${d.wastePct}%`).join('|');
             const prompt = `Given this waste rate by node (top 5 worst): [${contextStr}], provide a concise, max 2 sentence explanation of the risk profile across locations.`;
             const content = await askCortex(prompt);
-            setRateInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setRateInsight({ loading: false, error: err.message, content: null });
+            setRateInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setRateInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown Error", content: null });
         }
     };
 
@@ -101,9 +101,9 @@ export default function WasteTracker() {
             const contextStr = utilizationEfficiency.map(d => `${d.category.substring(0, 5)}:u${d.usedPct}%/w${d.wastedPct}%`).join('|');
             const prompt = `Given this inventory utilization efficiency per category (utilized/wasted %): [${contextStr}], provide a max 2 sentence insight on the most concerning areas of inefficiency.`;
             const content = await askCortex(prompt);
-            setEfficiencyInsight({ loading: false, error: null, content });
-        } catch (err: any) {
-            setEfficiencyInsight({ loading: false, error: err.message, content: null });
+            setEfficiencyInsight({ loading: false, error: null, content: content.response });
+        } catch (err: unknown) {
+            setEfficiencyInsight({ loading: false, error: err instanceof Error ? err.message : "Unknown Error", content: null });
         }
     };
 
