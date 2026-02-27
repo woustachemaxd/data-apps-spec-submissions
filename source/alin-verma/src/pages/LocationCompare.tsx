@@ -9,8 +9,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -21,23 +19,19 @@ import {
   Line,
   BarChart,
   Bar,
-  ComposedChart,
 } from "recharts";
 import {
   ChevronLeft,
   Plus,
   X,
   MapPin,
-  DollarSign,
   Star,
-  TrendingUp,
   ArrowUp,
   ArrowDown,
   Minus,
-  Trash2,
   AlertTriangle,
-  Calendar,
 } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import type {
   LocationScore,
   DailySale,
@@ -142,7 +136,7 @@ export function LocationCompare({
     const orderTypes = ["dine-in", "takeout", "delivery"];
     
     orderTypes.forEach((type) => {
-      const entry: Record<string, string | number> = {
+      const entry: { name: string; [key: string]: string | number } = {
         name: type.charAt(0).toUpperCase() + type.slice(1).replace("-", " "),
       };
       
@@ -199,20 +193,6 @@ export function LocationCompare({
     });
   }, [selectedLocations, inventoryByLocation]);
 
-  // Summary comparison metrics
-  const summaryComparison = useMemo(() => {
-    return selectedLocations.map((loc) => ({
-      name: loc.location.NAME,
-      city: loc.location.CITY,
-      revenue: loc.totalRevenue,
-      rating: loc.avgRating,
-      reviewCount: loc.reviewCount,
-      trend: loc.trend,
-      trendPercent: loc.trendPercent,
-      needsAttention: loc.needsAttention,
-      attentionReasons: loc.attentionReasons,
-    }));
-  }, [selectedLocations]);
 
   const canAddMore = selectedLocations.length < 3;
 
@@ -234,23 +214,20 @@ export function LocationCompare({
             <div className="flex items-center gap-3">
               {/* Date Range Filter */}
               <div className="hidden sm:flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, start: e.target.value })
+                <DatePicker
+                  date={dateRange.start}
+                  onDateChange={(date) =>
+                    setDateRange({ ...dateRange, start: date })
                   }
-                  className="bg-background border rounded px-2 py-1 text-sm"
+                  placeholder="Start date"
                 />
                 <span className="text-muted-foreground">to</span>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, end: e.target.value })
+                <DatePicker
+                  date={dateRange.end}
+                  onDateChange={(date) =>
+                    setDateRange({ ...dateRange, end: date })
                   }
-                  className="bg-background border rounded px-2 py-1 text-sm"
+                  placeholder="End date"
                 />
               </div>
               <Button
