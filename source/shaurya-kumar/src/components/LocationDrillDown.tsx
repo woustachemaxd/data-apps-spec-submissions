@@ -4,8 +4,6 @@ import { useSales } from "@/hooks/useSales";
 import { useReviews } from "@/hooks/useReviews";
 import { useInventory } from "@/hooks/useInventory";
 import { formatLongDate, formatShortDate } from "@/lib/dateUtils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
     AreaChart,
     Area,
@@ -131,17 +129,20 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                 <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b border-border px-6 py-4">
                     <div className="flex items-start justify-between">
                         <div>
-                            <h2 className="text-lg font-semibold">
-                                {location?.NAME || "Loading..."}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                                <span className="bp-spec">Spec Sheet</span>
+                                <h2 className="text-base font-semibold">
+                                    {location?.NAME || "Loading..."}
+                                </h2>
+                            </div>
                             {location && (
-                                <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                                <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
                                     <span className="inline-flex items-center gap-1">
-                                        <MapPin size={12} />
+                                        <MapPin size={10} />
                                         {location.CITY}, {location.STATE}
                                     </span>
                                     <span className="inline-flex items-center gap-1">
-                                        <User size={12} />
+                                        <User size={10} />
                                         {location.MANAGER_NAME}
                                     </span>
                                 </div>
@@ -149,32 +150,35 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            className="p-1.5 hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                         >
-                            <X size={18} />
+                            <X size={16} />
                         </button>
                     </div>
                 </div>
 
                 {isLoading ? (
-                    <div className="px-6 py-12 text-center text-muted-foreground">
-                        Loading location details...
+                    <div className="px-6 py-12 text-center">
+                        <div className="flex items-center justify-center gap-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
+                            <span className="w-2 h-2 bg-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
+                            Loading location details...
+                        </div>
                     </div>
                 ) : (
-                    <div className="px-6 py-4 space-y-6">
+                    <div className="px-6 py-4 space-y-5">
                         {/* Store info */}
                         {location && (
-                            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground uppercase tracking-wider">
                                 <span className="inline-flex items-center gap-1">
-                                    <MapPin size={12} />
+                                    <MapPin size={10} />
                                     {location.ADDRESS}
                                 </span>
                                 <span className="inline-flex items-center gap-1">
-                                    <Calendar size={12} />
+                                    <Calendar size={10} />
                                     Opened {formatLongDate(location.OPEN_DATE)}
                                 </span>
                                 <span className="inline-flex items-center gap-1">
-                                    <Users size={12} />
+                                    <Users size={10} />
                                     {location.SEATING_CAPACITY} seats
                                 </span>
                             </div>
@@ -207,11 +211,16 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                         </div>
 
                         {/* Revenue trend */}
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm">Daily Revenue</CardTitle>
-                            </CardHeader>
-                            <CardContent>
+                        <div className="bp-card">
+                            <div className="bp-corner-bl" />
+                            <div className="bp-corner-br" />
+                            <div className="px-4 py-2.5 border-b border-border">
+                                <div className="flex items-center gap-2">
+                                    <span className="bp-spec">Chart 01</span>
+                                    <span className="text-xs font-semibold">Daily Revenue</span>
+                                </div>
+                            </div>
+                            <div className="p-3">
                                 <ResponsiveContainer width="100%" height={200}>
                                     <AreaChart data={revenueByDate} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
                                         <defs>
@@ -221,14 +230,15 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                        <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-                                        <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                                        <XAxis dataKey="date" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
+                                        <YAxis tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: "var(--color-popover)",
                                                 border: "1px solid var(--color-border)",
-                                                borderRadius: "8px",
-                                                fontSize: "12px",
+                                                borderRadius: "0",
+                                                fontSize: "11px",
+                                                fontFamily: "'JetBrains Mono', monospace",
                                             }}
                                             formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]}
                                         />
@@ -241,15 +251,20 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                         />
                                     </AreaChart>
                                 </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
 
                         {/* Order type pie */}
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm">Revenue by Order Type</CardTitle>
-                            </CardHeader>
-                            <CardContent>
+                        <div className="bp-card">
+                            <div className="bp-corner-bl" />
+                            <div className="bp-corner-br" />
+                            <div className="px-4 py-2.5 border-b border-border">
+                                <div className="flex items-center gap-2">
+                                    <span className="bp-spec">Chart 02</span>
+                                    <span className="text-xs font-semibold">Revenue by Order Type</span>
+                                </div>
+                            </div>
+                            <div className="p-3">
                                 <div className="flex items-center justify-center">
                                     <ResponsiveContainer width="100%" height={180}>
                                         <PieChart>
@@ -273,37 +288,41 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                                 contentStyle={{
                                                     backgroundColor: "var(--color-popover)",
                                                     border: "1px solid var(--color-border)",
-                                                    borderRadius: "8px",
-                                                    fontSize: "12px",
+                                                    borderRadius: "0",
+                                                    fontSize: "11px",
+                                                    fontFamily: "'JetBrains Mono', monospace",
                                                 }}
                                                 formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, undefined]}
                                             />
                                         </PieChart>
                                     </ResponsiveContainer>
                                 </div>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
 
                         {/* Recent reviews */}
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-sm">Recent Reviews</CardTitle>
-                                    <Badge variant="outline" className="text-[10px]">
-                                        {reviews.length} reviews
-                                    </Badge>
+                        <div className="bp-card">
+                            <div className="bp-corner-bl" />
+                            <div className="bp-corner-br" />
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
+                                <div className="flex items-center gap-2">
+                                    <span className="bp-spec">Data 01</span>
+                                    <span className="text-xs font-semibold">Recent Reviews</span>
                                 </div>
-                            </CardHeader>
-                            <CardContent className="space-y-3 max-h-72 overflow-y-auto">
+                                <span className="bp-badge text-muted-foreground text-[9px]">
+                                    {reviews.length} reviews
+                                </span>
+                            </div>
+                            <div className="px-4 py-3 space-y-3 max-h-72 overflow-y-auto">
                                 {reviews.slice(0, 10).map((r) => (
                                     <div
                                         key={r.reviewId}
-                                        className="flex gap-3 text-sm border-b border-border/30 pb-3 last:border-0"
+                                        className="flex gap-3 text-xs border-b border-border/30 pb-3 last:border-0"
                                     >
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2">
                                                 <span className="font-medium">{r.customerName}</span>
-                                                <span className="text-xs text-muted-foreground">
+                                                <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
                                                     {formatShortDate(r.reviewDate)}
                                                 </span>
                                             </div>
@@ -311,7 +330,7 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                                 {Array.from({ length: 5 }).map((_, i) => (
                                                     <Star
                                                         key={i}
-                                                        size={11}
+                                                        size={10}
                                                         className={
                                                             i < Math.round(r.rating)
                                                                 ? "text-amber-400 fill-amber-400"
@@ -320,24 +339,29 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                                     />
                                                 ))}
                                             </div>
-                                            <p className="text-muted-foreground text-xs mt-1">
+                                            <p className="text-muted-foreground text-[10px] mt-1">
                                                 {r.reviewText}
                                             </p>
                                         </div>
                                     </div>
                                 ))}
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
 
                         {/* Inventory waste summary */}
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm">Inventory Waste Summary</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                                <table className="w-full text-sm">
+                        <div className="bp-card">
+                            <div className="bp-corner-bl" />
+                            <div className="bp-corner-br" />
+                            <div className="px-4 py-2.5 border-b border-border">
+                                <div className="flex items-center gap-2">
+                                    <span className="bp-spec">Data 02</span>
+                                    <span className="text-xs font-semibold">Inventory Waste Summary</span>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
                                     <thead>
-                                        <tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wider">
+                                        <tr className="border-b border-border text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
                                             <th className="text-left px-4 py-2 font-medium">Category</th>
                                             <th className="text-right px-4 py-2 font-medium">Received</th>
                                             <th className="text-right px-4 py-2 font-medium">Wasted</th>
@@ -348,7 +372,7 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                     <tbody>
                                         {wasteSummary.map((w) => (
                                             <tr key={w.category} className="border-b border-border/30">
-                                                <td className="px-4 py-2 font-medium capitalize">
+                                                <td className="px-4 py-2 font-medium uppercase text-[10px] tracking-wider">
                                                     {w.category.replace("_", " & ")}
                                                 </td>
                                                 <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
@@ -370,8 +394,8 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                         ))}
                                     </tbody>
                                 </table>
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -392,11 +416,11 @@ function KPICard({
 }) {
     return (
         <div
-            className={`rounded-lg border p-3 ${alert ? "border-red-500/30 bg-red-500/5" : "border-border"
+            className={`border p-3 ${alert ? "border-red-500/30 bg-red-500/5" : "border-border"
                 }`}
         >
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                <Icon size={12} />
+            <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground uppercase tracking-[0.15em] mb-1">
+                <Icon size={10} />
                 {label}
             </div>
             <p className={`text-lg font-semibold tabular-nums ${alert ? "text-red-500" : ""}`}>
