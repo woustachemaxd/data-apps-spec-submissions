@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
+import OverviewDashboard from "@/components/OverviewDashboard";
 import LocationScorecard from "@/components/LocationScorecard";
 import HistoricalSales from "@/components/HistoricalSales";
 import WasteTracker from "@/components/WasteTracker";
@@ -28,10 +29,13 @@ export default function App() {
         onLocationSelect={handleLocationSelect}
       >
         {activeView === "overview" && (
+          <OverviewDashboard onNavigateToLocations={() => setActiveView("locations")} />
+        )}
+        {activeView === "locations" && (
           <>
             {comparisonLocationIds.length >= 2 && (
               <div className="mb-6">
-                <HistoricalSales />
+                <HistoricalSales compact />
               </div>
             )}
             <LocationScorecard onLocationSelect={handleLocationSelect} />
