@@ -116,11 +116,20 @@ export async function querySnowflake<T = Record<string, unknown>>(
   }) as T[];
 }
 
+export interface AskLlmResponse {
+  cost: number;
+  input_tokens: number;
+  model: string;
+  output_tokens: number;
+  remaining_credits: number;
+  response: string;
+}
+
 /**
  * Helper to call the Cortex ASK_LLM stored procedure.
- * Parses the nested JSON response and returns the markdown string.
+ * Parses the nested JSON response and returns the full metadata object.
  */
-export async function askCortex(prompt: string, model: string = 'llama3.1-8b'): Promise<string> {
+export async function askCortex(prompt: string, model: string = 'llama3.1-8b'): Promise<AskLlmResponse> {
   // Sanitize single quotes for the SQL literal
   const sanitizedPrompt = prompt.replace(/'/g, "''");
 
@@ -148,8 +157,8 @@ export async function askCortex(prompt: string, model: string = 'llama3.1-8b'): 
   const jsonString = Object.values(rawData)[0];
 
   try {
-    const parsed = JSON.parse(jsonString);
-    return parsed.response;
+    const parsed: AskLlmResponse = JSON.parse(jsonString);
+    return parsed;
   } catch (e) {
     console.error("Failed to parse Cortex response", e);
     throw new Error("Invalid response format from Cortex");
