@@ -27,6 +27,20 @@ export default function DashboardLayout({
 
     return (
         <div className="min-h-screen bg-background text-foreground">
+            {/* Blueprint grid background */}
+            <svg className="bp-grid" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                        <path d="M 20 0 L 0 0 0 20" fill="none" stroke="var(--border)" strokeWidth="0.5" opacity="0.35" />
+                    </pattern>
+                    <pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse">
+                        <rect width="100" height="100" fill="url(#smallGrid)" />
+                        <path d="M 100 0 L 0 0 0 100" fill="none" stroke="var(--border)" strokeWidth="1" opacity="0.5" />
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid)" />
+            </svg>
+
             {/* Desktop sidebar */}
             <div className="hidden md:block">
                 <Sidebar
@@ -61,7 +75,7 @@ export default function DashboardLayout({
             {/* Main content area */}
             <div
                 className={`
-          transition-all duration-300 ease-in-out
+          relative z-[1] transition-all duration-300 ease-in-out
           ${sidebarCollapsed ? "md:ml-16" : "md:ml-56"}
         `}
             >
