@@ -1,7 +1,8 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, BarChart3, TrendingUp, Trash2, AlertCircle, MapPin, GitCompare } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
+import { BarChart3, TrendingUp, Trash2, AlertCircle, MapPin } from "lucide-react";
 import { AppLoadingSkeleton } from "@/components/dashboard";
 import { Logo } from "@/components/Logo";
 import { Chatbot } from "@/components/Chatbot";
@@ -219,23 +220,20 @@ export default function App() {
 
               {/* Date Range Filter */}
               <div className="hidden sm:flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) =>
-                    setDateRange((d) => ({ ...d, start: e.target.value }))
+                <DatePicker
+                  date={dateRange.start}
+                  onDateChange={(date) =>
+                    setDateRange((d) => ({ ...d, start: date }))
                   }
-                  className="bg-background border rounded px-2 py-1 text-sm"
+                  placeholder="Start date"
                 />
                 <span className="text-muted-foreground">to</span>
-                <input
-                  type="date"
-                  value={dateRange.end}
-                  onChange={(e) =>
-                    setDateRange((d) => ({ ...d, end: e.target.value }))
+                <DatePicker
+                  date={dateRange.end}
+                  onDateChange={(date) =>
+                    setDateRange((d) => ({ ...d, end: date }))
                   }
-                  className="bg-background border rounded px-2 py-1 text-sm"
+                  placeholder="End date"
                 />
               </div>
 
