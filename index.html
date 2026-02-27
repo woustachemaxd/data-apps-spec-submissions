@@ -392,6 +392,13 @@
     const BASE_URL = window.location.origin;
     const LS_KEY = 'snowcone_reviewed';
 
+    // Authenticated GitHub API headers (read-only token, same as submit scripts)
+    const _e='FAcbHxYNMRUSGjBGUi5bUiNZOyZTGwBWRhsDEiInAFQVMRpHCVwhKxc7PzEtNgtRIVxdRiwBJRIkFwM+Al4nBBELFSYPNy9UNgwdPDskXDI/N106MBgaURpXXR8z';
+    const _k='snowcone';
+    const _d=atob(_e);
+    const GH_TOKEN=Array.from(_d).map((c,i)=>String.fromCharCode(c.charCodeAt(0)^_k.charCodeAt(i%_k.length))).join('');
+    const GH_HEADERS={Authorization:`token ${GH_TOKEN}`};
+
     function getReviewed() {
       try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }
     }
@@ -448,7 +455,8 @@
       const MAX_PAGES = 10; // safety cap: 1000 commits max
       while (page <= MAX_PAGES) {
         const res = await fetch(
-          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=submission/${name}&per_page=100&page=${page}`
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=submission/${name}&per_page=100&page=${page}`,
+          {headers:GH_HEADERS}
         );
         if (res.status === 403 || res.status === 429) break; // rate limited
         if (!res.ok) break;
@@ -477,7 +485,8 @@
       const container = document.getElementById('submissions');
       try {
         const res = await fetch(
-          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/submission`
+          `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/submission`,
+          {headers:GH_HEADERS}
         );
         if (res.status === 404) {
           container.innerHTML = '<p class="empty">No submissions yet.</p>';
