@@ -263,7 +263,7 @@ export function Locations({
                     className="text-center py-3 px-2 font-medium cursor-pointer hover:text-primary"
                     onClick={() => handleSort("trend")}
                   >
-                    Trend{" "}
+                    Sales Trend{" "}
                     {sortKey === "trend" &&
                       (sortDir === "desc" ? "↓" : "↑")}
                   </th>
