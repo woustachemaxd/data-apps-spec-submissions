@@ -3,7 +3,6 @@ import { useSales } from "@/hooks/useSales";
 import { useLocations } from "@/hooks/useLocations";
 import { useFilters } from "@/contexts/FilterContext";
 import { formatShortDate } from "@/lib/dateUtils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download } from "lucide-react";
 import {
     AreaChart,
@@ -186,66 +185,68 @@ export default function HistoricalSales() {
 
     if (loading) {
         return (
-            <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
+            <div className="bp-card p-12 text-center">
+                <div className="flex items-center justify-center gap-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
+                    <span className="w-2 h-2 bg-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
                     Loading sales data...
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Card className="border-destructive">
-                <CardContent className="py-8 text-center">
-                    <p className="text-destructive font-medium">Failed to load sales data</p>
-                    <p className="text-sm text-muted-foreground mt-1">{error}</p>
-                </CardContent>
-            </Card>
+            <div className="bp-card border-destructive p-8 text-center">
+                <p className="text-destructive font-medium text-sm">Failed to load sales data</p>
+                <p className="text-xs text-muted-foreground mt-1">{error}</p>
+            </div>
         );
     }
 
     return (
         <div className="space-y-6">
             {/* Revenue trend */}
-            <Card>
-                <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-base">
+            <div className="bp-card">
+                <div className="bp-corner-bl" />
+                <div className="bp-corner-br" />
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="bp-spec">No. 01</span>
+                            <span className="text-sm font-semibold">
                                 {isComparing
                                     ? "Revenue Comparison"
                                     : "Revenue Trend (All Locations)"}
-                            </CardTitle>
-                            {!isComparing && (
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    Select locations from the Overview tab to compare individual stores
-                                </p>
-                            )}
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1">
-                            <button
-                                onClick={() => exportChartPNG(revenueChartRef, "revenue_trend")}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            >
-                                <Download size={11} /> PNG
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const headers = ["Date", ...locationNames];
-                                    const rows = revenueByDate.map((d: Record<string, unknown>) =>
-                                        [d.date as string, ...locationNames.map(n => (d[n] as number) ?? 0)]
-                                    );
-                                    exportCSV("revenue_data", headers, rows);
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            >
-                                <Download size={11} /> CSV
-                            </button>
-                        </div>
+                        {!isComparing && (
+                            <p className="text-[9px] text-muted-foreground mt-0.5 uppercase tracking-[0.1em]">
+                                Select locations from the Overview tab to compare individual stores
+                            </p>
+                        )}
                     </div>
-                </CardHeader>
-                <CardContent>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => exportChartPNG(revenueChartRef, "revenue_trend")}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <Download size={10} /> PNG
+                        </button>
+                        <button
+                            onClick={() => {
+                                const headers = ["Date", ...locationNames];
+                                const rows = revenueByDate.map((d: Record<string, unknown>) =>
+                                    [d.date as string, ...locationNames.map(n => (d[n] as number) ?? 0)]
+                                );
+                                exportCSV("revenue_data", headers, rows);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <Download size={10} /> CSV
+                        </button>
+                    </div>
+                </div>
+                <div className="p-4">
                     <div ref={revenueChartRef}>
                         <ResponsiveContainer width="100%" height={320}>
                             <AreaChart data={revenueByDate} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -258,17 +259,18 @@ export default function HistoricalSales() {
                                     ))}
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
                                 <YAxis
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
                                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                                 />
                                 <Tooltip
                                     contentStyle={{
                                         backgroundColor: "var(--color-popover)",
                                         border: "1px solid var(--color-border)",
-                                        borderRadius: "8px",
-                                        fontSize: "12px",
+                                        borderRadius: "0",
+                                        fontSize: "11px",
+                                        fontFamily: "'JetBrains Mono', monospace",
                                     }}
                                     formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, undefined]}
                                 />
@@ -286,69 +288,72 @@ export default function HistoricalSales() {
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Order type / Location breakdown */}
-            <Card>
-                <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-3">
-                            <CardTitle className="text-base">
+            <div className="bp-card">
+                <div className="bp-corner-bl" />
+                <div className="bp-corner-br" />
+                <div className="flex items-center justify-between flex-wrap gap-2 px-4 py-3 border-b border-border">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                            <span className="bp-spec">No. 02</span>
+                            <span className="text-sm font-semibold">
                                 {isComparing ? "Location Breakdown" : "Order Type Breakdown"}
-                            </CardTitle>
-                            <div className="flex gap-1">
-                                <button
-                                    onClick={() => setChartType("revenue")}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${chartType === "revenue"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted text-muted-foreground hover:bg-accent"
-                                        }`}
-                                >
-                                    Revenue
-                                </button>
-                                <button
-                                    onClick={() => setChartType("orders")}
-                                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${chartType === "orders"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-muted text-muted-foreground hover:bg-accent"
-                                        }`}
-                                >
-                                    Orders
-                                </button>
-                            </div>
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex gap-0.5">
                             <button
-                                onClick={() => exportChartPNG(orderChartRef, "order_breakdown")}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                                onClick={() => setChartType("revenue")}
+                                className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors border ${chartType === "revenue"
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-transparent text-muted-foreground border-border hover:bg-accent"
+                                    }`}
                             >
-                                <Download size={11} /> PNG
+                                Revenue
                             </button>
                             <button
-                                onClick={() => {
-                                    const keys = barConfigs.map(c => c.label);
-                                    const headers = ["Date", ...keys];
-                                    const rows = orderTypeData.map((d: Record<string, unknown>) =>
-                                        [d.date as string, ...barConfigs.map(c => (d[c.dataKey] as number) ?? 0)]
-                                    );
-                                    exportCSV("order_breakdown_data", headers, rows);
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                                onClick={() => setChartType("orders")}
+                                className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors border ${chartType === "orders"
+                                    ? "bg-primary text-primary-foreground border-primary"
+                                    : "bg-transparent text-muted-foreground border-border hover:bg-accent"
+                                    }`}
                             >
-                                <Download size={11} /> CSV
+                                Orders
                             </button>
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => exportChartPNG(orderChartRef, "order_breakdown")}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <Download size={10} /> PNG
+                        </button>
+                        <button
+                            onClick={() => {
+                                const keys = barConfigs.map(c => c.label);
+                                const headers = ["Date", ...keys];
+                                const rows = orderTypeData.map((d: Record<string, unknown>) =>
+                                    [d.date as string, ...barConfigs.map(c => (d[c.dataKey] as number) ?? 0)]
+                                );
+                                exportCSV("order_breakdown_data", headers, rows);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <Download size={10} /> CSV
+                        </button>
+                    </div>
+                </div>
+                <div className="p-4">
                     <div ref={orderChartRef}>
                         <ResponsiveContainer width="100%" height={280}>
                             <BarChart data={orderTypeData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                                <XAxis dataKey="date" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
                                 <YAxis
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
                                     tickFormatter={(v) =>
                                         chartType === "revenue"
                                             ? `$${(v / 1000).toFixed(0)}k`
@@ -359,8 +364,9 @@ export default function HistoricalSales() {
                                     contentStyle={{
                                         backgroundColor: "var(--color-popover)",
                                         border: "1px solid var(--color-border)",
-                                        borderRadius: "8px",
-                                        fontSize: "12px",
+                                        borderRadius: "0",
+                                        fontSize: "11px",
+                                        fontFamily: "'JetBrains Mono', monospace",
                                     }}
                                     formatter={(v?: number, name?: string) => {
                                         const displayName = isComparing && name?.includes("|")
@@ -381,7 +387,7 @@ export default function HistoricalSales() {
                                         dataKey={cfg.dataKey}
                                         stackId={cfg.stackId}
                                         fill={cfg.fill}
-                                        radius={cfg.isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+                                        radius={[0, 0, 0, 0]}
                                         name={cfg.label}
                                     />
                                 ))}
@@ -389,7 +395,7 @@ export default function HistoricalSales() {
                         </ResponsiveContainer>
                     </div>
                     {isComparing && (
-                        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-3 text-xs text-muted-foreground">
+                        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-3 text-[10px] text-muted-foreground uppercase tracking-wider">
                             {locationNames.map((name, locIdx) => {
                                 const palette = LOCATION_PALETTES[locIdx % LOCATION_PALETTES.length];
                                 return (
@@ -397,7 +403,7 @@ export default function HistoricalSales() {
                                         {orderTypes.map((ot) => (
                                             <span
                                                 key={ot}
-                                                className="w-2.5 h-2.5 rounded-sm inline-block"
+                                                className="w-2.5 h-2.5 inline-block"
                                                 style={{ backgroundColor: palette[ot] }}
                                             />
                                         ))}
@@ -407,9 +413,8 @@ export default function HistoricalSales() {
                             })}
                         </div>
                     )}
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
-
