@@ -15,8 +15,10 @@ import {
     PieChart,
     Pie,
 } from "recharts";
-import { AlertTriangle, ArrowUpRight, ArrowDownRight, Download } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, ArrowDownRight, Download, Sparkles } from "lucide-react";
 import { formatShortDate } from "@/lib/dateUtils";
+import { askCortex } from "@/lib/snowflake";
+import AiInsightPanel from "@/components/AiInsightPanel";
 
 const WASTE_THRESHOLD = 10; // 10% waste rate threshold
 
@@ -39,8 +41,70 @@ const CATEGORY_COLORS = [
 export default function WasteTracker() {
     const { wasteSummary, data: rawData, loading, error } = useInventory();
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [costInsight, setCostInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
+    const [categoryInsight, setCategoryInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
+    const [rateInsight, setRateInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
+    const [efficiencyInsight, setEfficiencyInsight] = useState<{ loading: boolean, error: string | null, content: string | null }>({ loading: false, error: null, content: null });
+
     const wasteChartRef = useRef<HTMLDivElement>(null);
     const costChartRef = useRef<HTMLDivElement>(null);
+    const categoryChartRef = useRef<HTMLDivElement>(null);
+    const efficiencyChartRef = useRef<HTMLDivElement>(null);
+
+    const handleCostInsight = async () => {
+        setCostInsight({ loading: true, error: null, content: null });
+        try {
+            const dataLength = dailyWasteCost.length;
+            const sampleSize = 10;
+            const step = Math.max(1, Math.floor(dataLength / sampleSize));
+            const sampled = dailyWasteCost.filter((_, i) => i % step === 0 || i === dataLength - 1).map(d => ({
+                d: d.date as string,
+                cost: Math.round(d.cost)
+            }));
+            const contextStr = sampled.map(d => Object.entries(d).map(([k, v]) => `${k}:${v}`).join('|')).join(', ');
+            const prompt = `Given this daily waste cost trend data: [${contextStr}], provide a concise explanation (maximum 2 sentences) describing the financial pattern and notable insights.`;
+            const content = await askCortex(prompt);
+            setCostInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setCostInsight({ loading: false, error: err.message, content: null });
+        }
+    };
+
+    const handleCategoryInsight = async () => {
+        setCategoryInsight({ loading: true, error: null, content: null });
+        try {
+            const contextStr = categoryDistribution.map(d => `${d.name}:${d.value} units (${d.pct}%)`).join(', ');
+            const prompt = `Given this food waste category breakdown: [${contextStr}], provide a concise, maximum 2 sentence insight on the primary sources of waste.`;
+            const content = await askCortex(prompt);
+            setCategoryInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setCategoryInsight({ loading: false, error: err.message, content: null });
+        }
+    };
+
+    const handleRateInsight = async () => {
+        setRateInsight({ loading: true, error: null, content: null });
+        try {
+            const contextStr = wasteByLocation.slice(0, 5).map(d => `${d.name.substring(0, 5)}:${d.wastePct}%`).join('|');
+            const prompt = `Given this waste rate by node (top 5 worst): [${contextStr}], provide a concise, max 2 sentence explanation of the risk profile across locations.`;
+            const content = await askCortex(prompt);
+            setRateInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setRateInsight({ loading: false, error: err.message, content: null });
+        }
+    };
+
+    const handleEfficiencyInsight = async () => {
+        setEfficiencyInsight({ loading: true, error: null, content: null });
+        try {
+            const contextStr = utilizationEfficiency.map(d => `${d.category.substring(0, 5)}:u${d.usedPct}%/w${d.wastedPct}%`).join('|');
+            const prompt = `Given this inventory utilization efficiency per category (utilized/wasted %): [${contextStr}], provide a max 2 sentence insight on the most concerning areas of inefficiency.`;
+            const content = await askCortex(prompt);
+            setEfficiencyInsight({ loading: false, error: null, content });
+        } catch (err: any) {
+            setEfficiencyInsight({ loading: false, error: err.message, content: null });
+        }
+    };
 
     const exportChartPNG = useCallback((ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
         const svg = ref.current?.querySelector("svg");
@@ -291,6 +355,15 @@ export default function WasteTracker() {
                         </div>
                         <div className="flex items-center gap-1">
                             <button
+                                onClick={handleRateInsight}
+                                disabled={rateInsight.loading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Sparkles size={10} className={rateInsight.loading ? "animate-pulse" : ""} />
+                                Explain Chart
+                            </button>
+                            <div className="w-px h-4 bg-border mx-1" />
+                            <button
                                 onClick={() => exportChartPNG(wasteChartRef, "waste_rate")}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
                             >
@@ -309,6 +382,12 @@ export default function WasteTracker() {
                         </div>
                     </div>
                     <div className="p-4">
+                        <AiInsightPanel
+                            isLoading={rateInsight.loading}
+                            error={rateInsight.error}
+                            content={rateInsight.content}
+                            className="mb-4"
+                        />
                         <div ref={wasteChartRef}>
                             <ResponsiveContainer width="100%" height={Math.max(200, wasteByLocation.length * 30)}>
                                 <BarChart data={wasteByLocation} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
@@ -394,6 +473,15 @@ export default function WasteTracker() {
                         <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Loss</span>
                         <div className="flex gap-1 ml-2">
                             <button
+                                onClick={handleCostInsight}
+                                disabled={costInsight.loading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Sparkles size={10} className={costInsight.loading ? "animate-pulse" : ""} />
+                                Explain Chart
+                            </button>
+                            <div className="w-px h-4 bg-border mx-1" />
+                            <button
                                 onClick={() => exportChartPNG(costChartRef, "waste_cost")}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
                             >
@@ -413,6 +501,12 @@ export default function WasteTracker() {
                     </div>
                 </div>
                 <div className="p-4">
+                    <AiInsightPanel
+                        isLoading={costInsight.loading}
+                        error={costInsight.error}
+                        content={costInsight.content}
+                        className="mb-4"
+                    />
                     <div ref={costChartRef}>
                         <ResponsiveContainer width="100%" height={260}>
                             <LineChart data={dailyWasteCost} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -444,14 +538,47 @@ export default function WasteTracker() {
                 <div className="bp-card">
                     <div className="bp-corner-bl" />
                     <div className="bp-corner-br" />
-                    <div className="px-4 py-3 border-b border-border">
+                    <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <span className="bp-spec">No. 04</span>
                             <span className="text-sm font-semibold">Category Waste Volume Distribution</span>
                         </div>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={handleCategoryInsight}
+                                disabled={categoryInsight.loading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Sparkles size={10} className={categoryInsight.loading ? "animate-pulse" : ""} />
+                                Explain Chart
+                            </button>
+                            <div className="w-px h-4 bg-border mx-1" />
+                            <button
+                                onClick={() => exportChartPNG(categoryChartRef, "waste_category_dist")}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                            >
+                                <Download size={10} /> PNG
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const headers = ["Category", "Units Wasted (%)", "Cost ($)"];
+                                    const rows = categoryDistribution.map(d => [d.name, `${d.value} (${d.pct}%)`, `$${d.cost.toLocaleString()}`]);
+                                    exportCSV("waste_category_dist_data", headers, rows);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                            >
+                                <Download size={10} /> CSV
+                            </button>
+                        </div>
                     </div>
                     <div className="p-4">
-                        <div className="flex items-center justify-center">
+                        <AiInsightPanel
+                            isLoading={categoryInsight.loading}
+                            error={categoryInsight.error}
+                            content={categoryInsight.content}
+                            className="mb-4"
+                        />
+                        <div ref={categoryChartRef} className="flex items-center justify-center">
                             <ResponsiveContainer width="100%" height={240}>
                                 <PieChart>
                                     <Pie
@@ -492,37 +619,72 @@ export default function WasteTracker() {
                 <div className="bp-card">
                     <div className="bp-corner-bl" />
                     <div className="bp-corner-br" />
-                    <div className="px-4 py-3 border-b border-border">
+                    <div className="px-4 py-3 border-b border-border flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                             <span className="bp-spec">No. 05</span>
                             <span className="text-sm font-semibold">Inventory Utilization Efficiency</span>
                         </div>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={handleEfficiencyInsight}
+                                disabled={efficiencyInsight.loading}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Sparkles size={10} className={efficiencyInsight.loading ? "animate-pulse" : ""} />
+                                Explain Chart
+                            </button>
+                            <div className="w-px h-4 bg-border mx-1" />
+                            <button
+                                onClick={() => exportChartPNG(efficiencyChartRef, "inventory_utilization")}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                            >
+                                <Download size={10} /> PNG
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const headers = ["Category", "Utilized (%)", "Wasted (%)"];
+                                    const rows = utilizationEfficiency.map(d => [d.category, d.usedPct, d.wastedPct]);
+                                    exportCSV("inventory_utilization_data", headers, rows);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                            >
+                                <Download size={10} /> CSV
+                            </button>
+                        </div>
                     </div>
                     <div className="p-4">
-                        <ResponsiveContainer width="100%" height={240}>
-                            <BarChart data={utilizationEfficiency} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
-                                <XAxis type="number" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-                                <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} width={100} />
-                                <Tooltip
-                                    contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
-                                    labelStyle={{ color: "var(--color-popover-foreground)" }}
-                                    itemStyle={{ color: "var(--color-popover-foreground)" }}
-                                    formatter={(v?: number, name?: string) => [`${v ?? 0}%`, name === "usedPct" ? "Utilized" : "Wasted"]}
-                                />
-                                <Bar dataKey="usedPct" stackId="a" fill="var(--color-chart-3)" name="usedPct" radius={[0, 0, 0, 0]} />
-                                <Bar dataKey="wastedPct" stackId="a" fill="var(--color-destructive)" name="wastedPct" radius={[0, 0, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                        <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-muted-foreground uppercase tracking-wider">
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="w-3 h-2 inline-block" style={{ backgroundColor: "var(--color-chart-3)" }} />
-                                Utilized
-                            </span>
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="w-3 h-2 inline-block" style={{ backgroundColor: "var(--color-destructive)" }} />
-                                Wasted
-                            </span>
+                        <AiInsightPanel
+                            isLoading={efficiencyInsight.loading}
+                            error={efficiencyInsight.error}
+                            content={efficiencyInsight.content}
+                            className="mb-4"
+                        />
+                        <div ref={efficiencyChartRef}>
+                            <ResponsiveContainer width="100%" height={240}>
+                                <BarChart data={utilizationEfficiency} layout="vertical" margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
+                                    <XAxis type="number" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
+                                    <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} width={100} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: "var(--color-popover)", color: "var(--color-popover-foreground)", border: "1px solid var(--color-border)", borderRadius: "0", fontSize: "11px", fontFamily: "'JetBrains Mono', monospace" }}
+                                        labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                        itemStyle={{ color: "var(--color-popover-foreground)" }}
+                                        formatter={(v?: number, name?: string) => [`${v ?? 0}%`, name === "usedPct" ? "Utilized" : "Wasted"]}
+                                    />
+                                    <Bar dataKey="usedPct" stackId="a" fill="var(--color-chart-3)" name="usedPct" radius={[0, 0, 0, 0]} />
+                                    <Bar dataKey="wastedPct" stackId="a" fill="var(--color-destructive)" name="wastedPct" radius={[0, 0, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                            <div className="flex items-center justify-center gap-4 mt-2 text-[10px] text-muted-foreground uppercase tracking-wider">
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="w-3 h-2 inline-block" style={{ backgroundColor: "var(--color-chart-3)" }} />
+                                    Utilized
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="w-3 h-2 inline-block" style={{ backgroundColor: "var(--color-destructive)" }} />
+                                    Wasted
+                                </span>
+                            </div>
                         </div>
                     </div>
                 </div>
