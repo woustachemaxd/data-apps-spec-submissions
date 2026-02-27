@@ -310,7 +310,6 @@
       letter-spacing: 0.15em;
       text-transform: uppercase;
       color: var(--bp-accent);
-      margin-top: 1rem;
     }
 
     /* Card metadata */
@@ -366,12 +365,19 @@
       border-color: oklch(0.55 0.15 25 / 0.6);
     }
 
+    /* Toolbar: count badge + sort on one row */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+
     /* Sort controls */
     .sort-bar {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      margin-bottom: 1.25rem;
     }
 
     .sort-label {
@@ -571,7 +577,9 @@
         window._submissions = enriched;
         window._reviewed = reviewed;
 
-        // Insert sort bar
+        // Insert toolbar (count badge + sort)
+        const toolbar = document.createElement('div');
+        toolbar.className = 'toolbar';
         const sortBar = document.createElement('div');
         sortBar.className = 'sort-bar';
         sortBar.innerHTML = `
@@ -579,7 +587,8 @@
           <button class="sort-btn active" data-sort="latest">Latest</button>
           <button class="sort-btn" data-sort="alpha">A → Z</button>
         `;
-        container.parentNode.insertBefore(sortBar, container);
+        toolbar.appendChild(sortBar);
+        container.parentNode.insertBefore(toolbar, container);
 
         sortBar.querySelectorAll('.sort-btn').forEach(btn => {
           btn.addEventListener('click', () => {
@@ -649,14 +658,11 @@
           });
         }
 
-        // Add count badge after section label
-        const label = document.querySelector('.section-label');
-        if (label) {
-          const badge = document.createElement('div');
-          badge.className = 'count-badge';
-          badge.textContent = `${dirs.length} submitted`;
-          label.parentNode.insertBefore(badge, sortBar);
-        }
+        // Add count badge to toolbar (left side)
+        const badge = document.createElement('div');
+        badge.className = 'count-badge';
+        badge.textContent = `${dirs.length} submitted`;
+        toolbar.insertBefore(badge, sortBar);
 
         // Initial render
         renderCards('latest');
