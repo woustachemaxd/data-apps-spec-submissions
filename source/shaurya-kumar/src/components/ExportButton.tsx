@@ -44,13 +44,14 @@ export default function ExportButton({ data, columns, filename = "export" }: Exp
         <button
             onClick={handleExport}
             disabled={data.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
-                       bg-muted text-muted-foreground hover:bg-accent hover:text-foreground
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 border border-border
+                       text-[10px] font-semibold uppercase tracking-[0.12em]
+                       text-muted-foreground hover:bg-accent hover:text-foreground
                        disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Export as CSV"
         >
-            <Download size={13} />
-            Export CSV
+            <Download size={11} />
+            CSV
         </button>
     );
 }
