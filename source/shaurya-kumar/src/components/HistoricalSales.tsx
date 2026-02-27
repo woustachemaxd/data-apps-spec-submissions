@@ -33,7 +33,11 @@ const LOCATION_PALETTES: Record<string, string>[] = [
     { "dine-in": "#8b5cf6", takeout: "#a78bfa", delivery: "#c4b5fd" },
 ];
 
-export default function HistoricalSales() {
+interface HistoricalSalesProps {
+    compact?: boolean;
+}
+
+export default function HistoricalSales({ compact = false }: HistoricalSalesProps) {
     const { comparisonLocationIds } = useFilters();
     const { data: locations } = useLocations();
     const { data: salesData, loading, error } = useSales(
@@ -204,7 +208,7 @@ export default function HistoricalSales() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className={compact ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "space-y-6"}>
             {/* Revenue trend */}
             <div className="bp-card">
                 <div className="bp-corner-bl" />
