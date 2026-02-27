@@ -1,0 +1,246 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+    --color-primary: #a855f7;
+    --color-secondary: #0f0f12;
+    --color-accent: #f59e0b;
+}
+
+:root {
+    --bg-color: #050505;
+    --card-bg: #0f0f11;
+    --text-main: #ffffff;
+    --text-muted: #94a3b8;
+    --border-color: rgba(255, 255, 255, 0.05);
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --sidebar-bg: #0a0a0c;
+    --muted-surface: rgba(0, 0, 0, 0.4);
+    --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+    --hover-glass: rgba(255, 255, 255, 0.05);
+    --modal-bg: #0a0a0c;
+    --chart-tooltip-bg: rgba(10, 14, 24, 0.96);
+    --chart-tooltip-border: rgba(148, 163, 184, 0.35);
+    --chart-tooltip-text: #e2e8f0;
+    --chart-tooltip-label: #cbd5e1;
+    view-transition-name: none;
+}
+
+[data-theme="light"] {
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: rgba(15, 23, 42, 0.08);
+    --glass-bg: rgba(15, 23, 42, 0.02);
+    --sidebar-bg: #f1f5f9;
+    --muted-surface: #f1f5f9;
+    --card-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05);
+    --hover-glass: rgba(15, 23, 42, 0.04);
+    --modal-bg: #ffffff;
+    --chart-tooltip-bg: rgba(255, 255, 255, 0.98);
+    --chart-tooltip-border: rgba(100, 116, 139, 0.35);
+    --chart-tooltip-text: #0f172a;
+    --chart-tooltip-label: #334155;
+}
+
+@layer base {
+    * {
+        @apply border-transparent;
+    }
+
+    body {
+        @apply antialiased;
+        font-family: 'Manrope', sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-main);
+    }
+}
+
+/* View Transition Styles */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+    z-index: 1;
+}
+
+::view-transition-new(root) {
+    z-index: 9999;
+}
+
+@layer components {
+    .glass-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color);
+    }
+
+    .card-gradient {
+        background-color: var(--card-bg);
+        background-image: radial-gradient(circle at top right, rgba(168, 85, 247, 0.05), transparent);
+        box-shadow: var(--card-shadow);
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .grid-masonry {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+@layer utilities {
+    .recharts-tooltip-wrapper .recharts-default-tooltip {
+        background: var(--chart-tooltip-bg) !important;
+        border: 1px solid var(--chart-tooltip-border) !important;
+        border-radius: 14px !important;
+        color: var(--chart-tooltip-text) !important;
+        box-shadow: 0 12px 28px -8px rgba(0, 0, 0, 0.35) !important;
+        backdrop-filter: blur(10px);
+        padding: 10px 12px !important;
+    }
+
+    .recharts-tooltip-wrapper .recharts-tooltip-label {
+        color: var(--chart-tooltip-label) !important;
+        font-weight: 800 !important;
+    }
+
+    .recharts-tooltip-wrapper .recharts-tooltip-item {
+        color: var(--chart-tooltip-text) !important;
+        font-weight: 700 !important;
+    }
+
+    .animate-float {
+        animation: float 6s ease-in-out infinite;
+    }
+
+    .drill-entrance {
+        animation: drillFadeIn 380ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .drill-stagger-1,
+    .drill-stagger-2,
+    .drill-stagger-3,
+    .drill-stagger-4,
+    .drill-stagger-5,
+    .drill-stagger-6 {
+        opacity: 0;
+        transform: translateY(16px);
+        animation: drillRiseIn 520ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .drill-stagger-1 {
+        animation-delay: 40ms;
+    }
+
+    .drill-stagger-2 {
+        animation-delay: 100ms;
+    }
+
+    .drill-stagger-3 {
+        animation-delay: 160ms;
+    }
+
+    .drill-stagger-4 {
+        animation-delay: 220ms;
+    }
+
+    .drill-stagger-5 {
+        animation-delay: 280ms;
+    }
+
+    .drill-stagger-6 {
+        animation-delay: 340ms;
+    }
+
+    .tab-page-enter {
+        animation-duration: 320ms;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+        animation-fill-mode: both;
+        will-change: transform, opacity, filter;
+    }
+
+    .tab-page-forward {
+        animation-name: tabEnterForward;
+    }
+
+    .tab-page-backward {
+        animation-name: tabEnterBackward;
+    }
+
+    @keyframes float {
+
+        0%,
+        100% {
+            transform: translateY(0px);
+        }
+
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+
+    @keyframes drillFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes drillRiseIn {
+        from {
+            opacity: 0;
+            transform: translateY(16px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes tabEnterForward {
+        from {
+            opacity: 0;
+            transform: translateY(10px) translateX(18px);
+            filter: blur(3px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
+            filter: blur(0);
+        }
+    }
+
+    @keyframes tabEnterBackward {
+        from {
+            opacity: 0;
+            transform: translateY(10px) translateX(-18px);
+            filter: blur(3px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) translateX(0);
+            filter: blur(0);
+        }
+    }
+}
