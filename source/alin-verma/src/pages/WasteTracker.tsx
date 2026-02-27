@@ -148,7 +148,7 @@ export function WasteTracker({
                                 Above Threshold
                               </Badge>
                               {/* Tooltip on hover */}
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-[60]">
                                 <div className="bg-popover text-popover-foreground text-xs rounded-md shadow-lg border p-2 min-w-48 max-w-64">
                                   <p className="font-semibold mb-1 text-destructive">High Waste Alert:</p>
                                   <ul className="space-y-1">
@@ -172,8 +172,8 @@ export function WasteTracker({
                                     )}
                                   </ul>
                                   {/* Arrow */}
-                                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
-                                    <div className="border-4 border-transparent border-t-popover" />
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 -mb-1">
+                                    <div className="border-4 border-transparent border-b-popover" />
                                   </div>
                                 </div>
                               </div>
