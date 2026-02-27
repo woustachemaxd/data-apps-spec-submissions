@@ -6,7 +6,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Loader2, Database, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { askCortex, formatResultsForChat } from "@/lib/cortex";
+import { askCortex } from "@/lib/cortex";
 
 interface Message {
   id: string;
@@ -56,26 +56,15 @@ export function Chatbot() {
     try {
       const result = await askCortex(userMessage.content);
 
-      if (result.success && result.data) {
-        // Add SQL message (collapsible)
-        if (result.sql) {
-          const sqlMessage: Message = {
-            id: generateId(),
-            type: "sql",
-            content: result.sql,
-            timestamp: new Date(),
-          };
-          setMessages(prev => [...prev, sqlMessage]);
-        }
-
-        // Add results message
-        const resultsMessage: Message = {
+      if (result.success && result.response) {
+        // Add the AI response
+        const assistantMessage: Message = {
           id: generateId(),
           type: "assistant",
-          content: formatResultsForChat(result.data),
+          content: result.response,
           timestamp: new Date(),
         };
-        setMessages(prev => [...prev, resultsMessage]);
+        setMessages(prev => [...prev, assistantMessage]);
       } else {
         // Error message
         const errorMessage: Message = {
