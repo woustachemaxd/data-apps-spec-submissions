@@ -230,16 +230,19 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                                        <XAxis dataKey="date" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }} interval="preserveStartEnd" />
-                                        <YAxis tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                                        <XAxis dataKey="date" tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} interval={Math.max(0, Math.ceil(revenueByDate.length / 12) - 1)} />
+                                        <YAxis tick={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                                         <Tooltip
                                             contentStyle={{
                                                 backgroundColor: "var(--color-popover)",
+                                                color: "var(--color-popover-foreground)",
                                                 border: "1px solid var(--color-border)",
                                                 borderRadius: "0",
                                                 fontSize: "11px",
                                                 fontFamily: "'JetBrains Mono', monospace",
                                             }}
+                                            labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                            itemStyle={{ color: "var(--color-popover-foreground)" }}
                                             formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]}
                                         />
                                         <Area
@@ -276,9 +279,11 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                                 outerRadius={75}
                                                 paddingAngle={3}
                                                 dataKey="value"
-                                                label={({ name, percent }: { name?: string; percent?: number }) =>
-                                                    `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
-                                                }
+                                                label={({ name, percent, x, y }: { name?: string; percent?: number; x?: number; y?: number }) => (
+                                                    <text x={x} y={y} fill="var(--color-foreground)" textAnchor="middle" dominantBaseline="central" fontSize={12} fontFamily="'JetBrains Mono', monospace">
+                                                        {`${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                                                    </text>
+                                                )}
                                             >
                                                 {orderTypeSplit.map((_entry, idx) => (
                                                     <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
@@ -287,11 +292,14 @@ export default function LocationDrillDown({ locationId, onClose }: LocationDrill
                                             <Tooltip
                                                 contentStyle={{
                                                     backgroundColor: "var(--color-popover)",
+                                                    color: "var(--color-popover-foreground)",
                                                     border: "1px solid var(--color-border)",
                                                     borderRadius: "0",
                                                     fontSize: "11px",
                                                     fontFamily: "'JetBrains Mono', monospace",
                                                 }}
+                                                labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                                itemStyle={{ color: "var(--color-popover-foreground)" }}
                                                 formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, undefined]}
                                             />
                                         </PieChart>
