@@ -331,7 +331,7 @@ export function useWasteByCategory(inventory: InventoryRecord[]): WasteCategoryD
 
 // Hook for dark mode
 export function useDarkMode(): [boolean, (value: boolean) => void] {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(true);
 
   useEffect(() => {
     if (darkMode) {
