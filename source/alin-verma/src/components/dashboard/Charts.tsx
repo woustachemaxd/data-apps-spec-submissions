@@ -156,7 +156,7 @@ export function RevenueBarChart({
   );
 }
 
-// Revenue by Location Bar Chart
+// Revenue by Location Bar Chart (Horizontal for better readability)
 interface LocationRevenueChartProps {
   data: { name: string; revenue: number }[];
 }
@@ -166,29 +166,41 @@ export function LocationRevenueChart({ data }: LocationRevenueChartProps) {
     <Card>
       <CardHeader>
         <CardTitle>Revenue by Location</CardTitle>
+        <CardDescription>Click on a bar to see detailed breakdown</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-80">
+        <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} margin={{ bottom: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+            <BarChart 
+              data={data} 
+              layout="vertical"
+              margin={{ left: 120, right: 30 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={true} vertical={false} />
               <XAxis
-                dataKey="name"
-                tick={{ fontSize: 10 }}
-                angle={-45}
-                textAnchor="end"
+                type="number"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
               />
               <YAxis
-                tick={{ fontSize: 10 }}
-                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                width={110}
               />
               <Tooltip
                 formatter={(v) => [`$${Number(v).toLocaleString()}`, "Revenue"]}
+                contentStyle={{ 
+                  backgroundColor: 'hsl(var(--card))',
+                  borderColor: 'hsl(var(--border))',
+                  borderRadius: '8px'
+                }}
               />
               <Bar
                 dataKey="revenue"
                 fill="var(--chart-1)"
-                radius={[4, 4, 0, 0]}
+                radius={[0, 4, 4, 0]}
+                barSize={24}
               />
             </BarChart>
           </ResponsiveContainer>
