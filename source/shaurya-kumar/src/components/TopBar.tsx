@@ -1,4 +1,4 @@
-import { Sun, Moon, Search, X } from "lucide-react";
+import { Sun, Moon, Search, X, Sparkles } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useFilters } from "@/contexts/FilterContext";
 import { useLocations } from "@/hooks/useLocations";
@@ -8,9 +8,10 @@ import { useState, useRef, useEffect } from "react";
 interface TopBarProps {
     title: string;
     onLocationSelect?: (locationId: number) => void;
+    onToggleAi?: () => void;
 }
 
-export default function TopBar({ title, onLocationSelect }: TopBarProps) {
+export default function TopBar({ title, onLocationSelect, onToggleAi }: TopBarProps) {
     const { theme, toggleTheme } = useTheme();
     const { searchQuery, setSearchQuery } = useFilters();
     const { data: locations } = useLocations();
@@ -112,6 +113,16 @@ export default function TopBar({ title, onLocationSelect }: TopBarProps) {
                     title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
                 >
                     {theme === "light" ? <Moon size={14} /> : <Sun size={14} />}
+                </button>
+
+                {/* AI Toggle */}
+                <button
+                    onClick={onToggleAi}
+                    className="flex items-center gap-1.5 px-3 py-1.5 ml-2 bg-primary/10 hover:bg-primary/20 text-primary transition-colors border border-primary/20 shadow-sm"
+                    title="Ask Cortex AI"
+                >
+                    <Sparkles size={14} />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider hidden sm:inline-block">Ask AI</span>
                 </button>
             </div>
         </header>
