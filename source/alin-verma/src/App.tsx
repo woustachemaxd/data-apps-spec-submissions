@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar, BarChart3, TrendingUp, Trash2, AlertCircle, MapPin, GitCompare } from "lucide-react";
 import { AppLoadingSkeleton } from "@/components/dashboard";
 import { Logo } from "@/components/Logo";
-// import { Chatbot } from "@/components/Chatbot"; // TODO: Enable after Snowflake Cortex is configured
+import { Chatbot } from "@/components/Chatbot";
 
 // Hooks
 import {
@@ -131,6 +131,7 @@ export default function App() {
         onAddLocation={handleAddToCompare}
         onRemoveLocation={handleRemoveFromCompare}
         dateRange={dateRange}
+        setDateRange={setDateRange}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
       />
@@ -155,6 +156,8 @@ export default function App() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         onCompare={handleStartCompare}
+        dateRange={dateRange}
+        setDateRange={setDateRange}
       />
     );
   }
@@ -320,8 +323,8 @@ export default function App() {
         <p>Data Mavericks — The Snowcone Warehouse Challenge</p>
       </footer>
 
-      {/* AI Chatbot - TODO: Enable after Snowflake Cortex is configured */}
-      {/* <Chatbot /> */}
+      {/* AI Chatbot */}
+      <Chatbot />
     </div>
   );
 }
