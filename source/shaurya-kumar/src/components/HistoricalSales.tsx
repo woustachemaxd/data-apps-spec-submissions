@@ -1,10 +1,11 @@
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useSales } from "@/hooks/useSales";
 import { useLocations } from "@/hooks/useLocations";
 import { useFilters } from "@/contexts/FilterContext";
 import { formatShortDate } from "@/lib/dateUtils";
 import { Download, Sparkles } from "lucide-react";
 import { askCortex } from "@/lib/snowflake";
+import { exportChartPNG, exportCSV } from "@/lib/exportUtils";
 import AiInsightPanel from "@/components/AiInsightPanel";
 import {
     AreaChart,
@@ -51,40 +52,7 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
     const revenueChartRef = useRef<HTMLDivElement>(null);
     const orderChartRef = useRef<HTMLDivElement>(null);
 
-    const exportChartPNG = useCallback((ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
-        const svg = ref.current?.querySelector("svg");
-        if (!svg) return;
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const canvas = document.createElement("canvas");
-        const rect = svg.getBoundingClientRect();
-        canvas.width = rect.width * 2;
-        canvas.height = rect.height * 2;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.scale(2, 2);
-        const img = new Image();
-        const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        img.onload = () => {
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, rect.width, rect.height);
-            URL.revokeObjectURL(url);
-            const a = document.createElement("a");
-            a.download = `${filename}_${new Date().toISOString().split("T")[0]}.png`;
-            a.href = canvas.toDataURL("image/png");
-            a.click();
-        };
-        img.src = url;
-    }, []);
 
-    const exportCSV = useCallback((filename: string, headers: string[], rows: (string | number)[][]) => {
-        const csv = [headers.map(h => `"${h}"`).join(","), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-        a.download = `${filename}_${new Date().toISOString().split("T")[0]}.csv`;
-        a.click();
-    }, []);
 
     // Aggregate daily revenue across all locations (or per-location if comparing)
     const revenueByDate = useMemo(() => {
@@ -487,26 +455,26 @@ export default function HistoricalSales({ compact = false }: HistoricalSalesProp
                                 ))}
                             </BarChart>
                         </ResponsiveContainer>
+                        {isComparing && (
+                            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-3 pb-2 text-[10px] text-muted-foreground uppercase tracking-wider">
+                                {locationNames.map((name, locIdx) => {
+                                    const palette = LOCATION_PALETTES[locIdx % LOCATION_PALETTES.length];
+                                    return (
+                                        <span key={name} className="inline-flex items-center gap-1.5">
+                                            {orderTypes.map((ot) => (
+                                                <span
+                                                    key={ot}
+                                                    className="w-2.5 h-2.5 inline-block"
+                                                    style={{ backgroundColor: palette[ot] }}
+                                                />
+                                            ))}
+                                            {name}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
-                    {isComparing && (
-                        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-3 text-[10px] text-muted-foreground uppercase tracking-wider">
-                            {locationNames.map((name, locIdx) => {
-                                const palette = LOCATION_PALETTES[locIdx % LOCATION_PALETTES.length];
-                                return (
-                                    <span key={name} className="inline-flex items-center gap-1.5">
-                                        {orderTypes.map((ot) => (
-                                            <span
-                                                key={ot}
-                                                className="w-2.5 h-2.5 inline-block"
-                                                style={{ backgroundColor: palette[ot] }}
-                                            />
-                                        ))}
-                                        {name}
-                                    </span>
-                                );
-                            })}
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
