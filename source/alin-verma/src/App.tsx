@@ -302,6 +302,7 @@ export default function App() {
             locationScores={locationScores}
             filteredSales={filteredSales}
             salesByOrderType={salesByOrderType}
+            dateRange={dateRange}
           />
         )}
 
