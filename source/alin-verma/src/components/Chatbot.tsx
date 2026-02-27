@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Loader2, Database, AlertCircle } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { askCortex } from "@/lib/cortex";
 
