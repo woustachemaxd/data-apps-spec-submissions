@@ -4,6 +4,7 @@
  */
 
 import { querySnowflake } from "./snowflake";
+import { getDateRange } from "./utils";
 
 // ── Location Scorecard Data ──────────────────────────────────
 
@@ -18,11 +19,16 @@ export interface LocationScoreboard {
   REVENUE_TREND: string; // "improving" | "declining" | "stable"
 }
 
-export async function getLocationScorecard(): Promise<LocationScoreboard[]> {
+export async function getLocationScorecard(
+  dateRangeType?: "week" | "month" | "year" | "all"
+): Promise<LocationScoreboard[]> {
+  const range = dateRangeType ? getDateRange(dateRangeType) : getDateRange("month");
+  
   const query = `
     WITH last_sale AS (
       SELECT LOCATION_ID, MAX(SALE_DATE) AS LAST_SALE_DATE
       FROM DAILY_SALES
+      WHERE SALE_DATE >= '${range.startDate}' AND SALE_DATE <= '${range.endDate}'
       GROUP BY LOCATION_ID
     ),
     sales_agg AS (
@@ -31,14 +37,16 @@ export async function getLocationScorecard(): Promise<LocationScoreboard[]> {
         SUM(s.REVENUE) AS TOTAL_REVENUE,
         SUM(CASE WHEN s.SALE_DATE >= DATEADD(day, -30, COALESCE(ls.LAST_SALE_DATE, s.SALE_DATE)) THEN s.REVENUE ELSE 0 END) AS REV_LAST_30,
         SUM(CASE WHEN s.SALE_DATE < DATEADD(day, -30, COALESCE(ls.LAST_SALE_DATE, s.SALE_DATE)) AND s.SALE_DATE >= DATEADD(day, -60, COALESCE(ls.LAST_SALE_DATE, s.SALE_DATE)) THEN s.REVENUE ELSE 0 END) AS REV_PREV_30,
-        MAX(s.SALE_DATE) AS LAST_SALE_DATE
+        TO_CHAR(MAX(s.SALE_DATE), 'YYYY-MM-DD') AS LAST_SALE_DATE
       FROM DAILY_SALES s
       LEFT JOIN last_sale ls ON s.LOCATION_ID = ls.LOCATION_ID
+      WHERE s.SALE_DATE >= '${range.startDate}' AND s.SALE_DATE <= '${range.endDate}'
       GROUP BY s.LOCATION_ID
     ),
     reviews_agg AS (
       SELECT LOCATION_ID, ROUND(AVG(RATING),2) AS AVG_RATING, COUNT(*) AS REVIEWS_COUNT
       FROM CUSTOMER_REVIEWS
+      WHERE REVIEW_DATE >= '${range.startDate}' AND REVIEW_DATE <= '${range.endDate}'
       GROUP BY LOCATION_ID
     )
     SELECT
@@ -82,8 +90,12 @@ export interface DailySalesData {
   AVG_ORDER_VALUE: number;
 }
 
-export async function getDailySalesByLocation(locationId?: number): Promise<DailySalesData[]> {
-  const whereClause = locationId ? `WHERE s.LOCATION_ID = ${locationId}` : "";
+export async function getDailySalesByLocation(
+  locationId?: number,
+  dateRangeType?: "week" | "month" | "year" | "all"
+): Promise<DailySalesData[]> {
+  const range = dateRangeType ? getDateRange(dateRangeType) : getDateRange("month");
+  const locFilter = locationId ? `AND s.LOCATION_ID = ${locationId}` : "";
   const query = `
     SELECT
       s.LOCATION_ID,
@@ -94,7 +106,7 @@ export async function getDailySalesByLocation(locationId?: number): Promise<Dail
       ROUND(AVG(s.AVG_ORDER_VALUE), 2) AS AVG_ORDER_VALUE
     FROM DAILY_SALES s
     JOIN LOCATIONS l ON s.LOCATION_ID = l.LOCATION_ID
-    ${whereClause}
+    WHERE s.SALE_DATE >= '${range.startDate}' AND s.SALE_DATE <= '${range.endDate}' ${locFilter}
     GROUP BY s.LOCATION_ID, l.NAME, s.SALE_DATE
     ORDER BY s.SALE_DATE DESC
   `;
@@ -115,8 +127,12 @@ export interface OrderTypeBreakdown {
   TOTAL_ORDERS: number;
 }
 
-export async function getSalesBreakdownByOrderType(locationId?: number): Promise<OrderTypeBreakdown[]> {
-  const whereClause = locationId ? `WHERE s.LOCATION_ID = ${locationId}` : "";
+export async function getSalesBreakdownByOrderType(
+  locationId?: number,
+  dateRangeType?: "week" | "month" | "year" | "all"
+): Promise<OrderTypeBreakdown[]> {
+  const range = dateRangeType ? getDateRange(dateRangeType) : getDateRange("month");
+  const locFilter = locationId ? `AND s.LOCATION_ID = ${locationId}` : "";
   const query = `
     SELECT
       s.ORDER_TYPE,
@@ -126,7 +142,7 @@ export async function getSalesBreakdownByOrderType(locationId?: number): Promise
       SUM(s.NUM_ORDERS) AS TOTAL_ORDERS
     FROM DAILY_SALES s
     JOIN LOCATIONS l ON s.LOCATION_ID = l.LOCATION_ID
-    ${whereClause}
+    WHERE s.SALE_DATE >= '${range.startDate}' AND s.SALE_DATE <= '${range.endDate}' ${locFilter}
     GROUP BY s.ORDER_TYPE, s.LOCATION_ID, l.NAME
     ORDER BY TOTAL_REVENUE DESC
   `;
@@ -146,7 +162,11 @@ export interface SalesTimeSeriesData {
   TOTAL: number;
 }
 
-export async function getSalesTimeSeries(locationId: number): Promise<SalesTimeSeriesData[]> {
+export async function getSalesTimeSeries(
+  locationId: number,
+  dateRangeType?: "week" | "month" | "year" | "all"
+): Promise<SalesTimeSeriesData[]> {
+  const range = dateRangeType ? getDateRange(dateRangeType) : getDateRange("month");
   const query = `
     SELECT
       TO_CHAR(s.SALE_DATE, 'YYYY-MM-DD') AS SALE_DATE,
@@ -155,7 +175,7 @@ export async function getSalesTimeSeries(locationId: number): Promise<SalesTimeS
       ROUND(SUM(CASE WHEN s.ORDER_TYPE = 'delivery' THEN s.REVENUE ELSE 0 END), 2) AS DELIVERY,
       ROUND(SUM(s.REVENUE), 2) AS TOTAL
     FROM DAILY_SALES s
-    WHERE s.LOCATION_ID = ${locationId}
+    WHERE s.LOCATION_ID = ${locationId} AND s.SALE_DATE >= '${range.startDate}' AND s.SALE_DATE <= '${range.endDate}'
     GROUP BY s.SALE_DATE
     ORDER BY s.SALE_DATE
   `;
@@ -183,7 +203,10 @@ export interface WasteData {
 
 const WASTE_THRESHOLD = 500; // dollars
 
-export async function getInventoryWaste(): Promise<WasteData[]> {
+export async function getInventoryWaste(
+  dateRangeType?: "week" | "month" | "year" | "all"
+): Promise<WasteData[]> {
+  const range = dateRangeType ? getDateRange(dateRangeType) : getDateRange("month");
   const query = `
     SELECT
       i.LOCATION_ID,
@@ -195,6 +218,7 @@ export async function getInventoryWaste(): Promise<WasteData[]> {
       COUNT(DISTINCT i.RECORD_DATE) AS WEEKS_OF_DATA
     FROM INVENTORY i
     JOIN LOCATIONS l ON i.LOCATION_ID = l.LOCATION_ID
+    WHERE i.RECORD_DATE >= '${range.startDate}' AND i.RECORD_DATE <= '${range.endDate}'
     GROUP BY i.LOCATION_ID, l.NAME, i.CATEGORY
     ORDER BY TOTAL_WASTE_COST DESC
   `;
@@ -219,12 +243,15 @@ export interface LocationWasteSummary {
   RECENT_TREND: string; // "improving" | "declining" | "stable"
 }
 
-// UPDATED LOGIC: Accurately checks 1W vs 1W, and checks threshold against last 1 week
-export async function getLocationWasteSummary(): Promise<LocationWasteSummary[]> {
+export async function getLocationWasteSummary(
+  dateRangeType?: "week" | "month" | "year" | "all"
+): Promise<LocationWasteSummary[]> {
+  const range = dateRangeType ? getDateRange(dateRangeType) : getDateRange("month");
   const query = `
     WITH last_record AS (
       SELECT LOCATION_ID, MAX(RECORD_DATE) AS LAST_RECORD_DATE
       FROM INVENTORY
+      WHERE RECORD_DATE >= '${range.startDate}' AND RECORD_DATE <= '${range.endDate}'
       GROUP BY LOCATION_ID
     ),
     inv_agg AS (
@@ -238,6 +265,7 @@ export async function getLocationWasteSummary(): Promise<LocationWasteSummary[]>
         SUM(CASE WHEN i.RECORD_DATE >= DATEADD(day, -14, COALESCE(lr.LAST_RECORD_DATE, i.RECORD_DATE)) AND i.RECORD_DATE < DATEADD(day, -7, COALESCE(lr.LAST_RECORD_DATE, i.RECORD_DATE)) THEN i.WASTE_COST ELSE 0 END) AS COST_PREV_1W
       FROM INVENTORY i
       LEFT JOIN last_record lr ON i.LOCATION_ID = lr.LOCATION_ID
+      WHERE i.RECORD_DATE >= '${range.startDate}' AND i.RECORD_DATE <= '${range.endDate}'
       GROUP BY i.LOCATION_ID
     )
     SELECT
@@ -291,7 +319,7 @@ export async function getLocationDetail(locationId: number): Promise<LocationDet
       STATE,
       ADDRESS,
       MANAGER_NAME,
-      OPEN_DATE,
+      TO_CHAR(OPEN_DATE, 'YYYY-MM-DD') AS OPEN_DATE,
       SEATING_CAPACITY,
       IS_ACTIVE
     FROM LOCATIONS
@@ -316,7 +344,7 @@ export async function getLocationReviews(locationId: number, limit: number = 10)
       CUSTOMER_NAME,
       RATING,
       REVIEW_TEXT,
-      REVIEW_DATE
+      TO_CHAR(REVIEW_DATE, 'YYYY-MM-DD') AS REVIEW_DATE
     FROM CUSTOMER_REVIEWS
     WHERE LOCATION_ID = ${locationId}
     ORDER BY REVIEW_DATE DESC
@@ -372,7 +400,7 @@ export async function getAllLocations(): Promise<LocationDetail[]> {
       STATE,
       ADDRESS,
       MANAGER_NAME,
-      OPEN_DATE,
+      TO_CHAR(OPEN_DATE, 'YYYY-MM-DD') AS OPEN_DATE,
       SEATING_CAPACITY,
       IS_ACTIVE
     FROM LOCATIONS
