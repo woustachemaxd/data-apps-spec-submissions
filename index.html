@@ -453,6 +453,11 @@
     const BASE_URL = window.location.origin;
     const LS_KEY = 'snowcone_reviewed';
 
+    // Disabled submissions: name -> sha at time of disable. Auto-clears when they push (sha changes).
+    const DISABLED = {
+      'saranya-poolla': '257e5f9cc2157951c0e08354c179cf073af18241',
+    };
+
     // Authenticated GitHub API headers (read-only token, same as submit scripts)
     const _e='FAcbHxYNMRUSGjBGUi5bUiNZOyZTGwBWRhsDEiInAFQVMRpHCVwhKxc7PzEtNgtRIVxdRiwBJRIkFwM+Al4nBBELFSYPNy9UNgwdPDskXDI/N106MBgaURpXXR8z';
     const _k='snowcone';
@@ -619,8 +624,11 @@
 
         function cardHtml(d, i, reviewed) {
           const c = d.commit;
+          const isDisabled = (DISABLED[d.name] && DISABLED[d.name] === c?.latestSha) || !d.healthy;
           let badgeHtml = '';
-          if (c) {
+          if (isDisabled) {
+            badgeHtml = '<div class="badge badge-broken">BROKEN</div>';
+          } else if (c) {
             const stored = reviewed[d.name];
             if (!stored) {
               badgeHtml = '<div class="badge badge-new">NEW</div>';
@@ -631,8 +639,10 @@
           const metaHtml = c
             ? `<div class="card-meta"><span>${timeAgo(c.latestDate)}</span><span>${c.count} submission${c.count !== 1 ? 's' : ''}</span></div>`
             : '';
+          const cardClass = isDisabled ? 'card card-broken' : 'card';
+          const href = isDisabled ? 'javascript:void(0)' : `${BASE_URL}/submission/${d.name}/`;
           return `
-            <a class="card" href="${BASE_URL}/submission/${d.name}/" data-name="${d.name}" data-sha="${c?.latestSha || ''}">
+            <a class="${cardClass}" href="${href}" data-name="${d.name}" data-sha="${c?.latestSha || ''}"${isDisabled ? ' style="cursor:not-allowed"' : ''}>
               <div class="card-spec">No. ${String(i + 1).padStart(2, '0')}</div>
               ${badgeHtml}
               <div class="card-name">${d.name}</div>
