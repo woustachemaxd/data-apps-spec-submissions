@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import Sidebar, { type ViewSection } from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import { Menu } from "lucide-react";
+import Chatbot from "@/components/Chatbot";
 
 const VIEW_TITLES: Record<ViewSection, string> = {
     overview: "Dashboard Overview",
@@ -99,6 +100,8 @@ export default function DashboardLayout({
                 {/* Page content */}
                 <main className="p-4 md:p-6">{children}</main>
             </div>
+
+            <Chatbot />
         </div>
     );
 }
