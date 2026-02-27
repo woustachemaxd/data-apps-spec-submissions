@@ -115,3 +115,43 @@ export async function querySnowflake<T = Record<string, unknown>>(
     return obj;
   }) as T[];
 }
+
+/**
+ * Helper to call the Cortex ASK_LLM stored procedure.
+ * Parses the nested JSON response and returns the markdown string.
+ */
+export async function askCortex(prompt: string, model: string = 'llama3.1-8b'): Promise<string> {
+  // Sanitize single quotes for the SQL literal
+  const sanitizedPrompt = prompt.replace(/'/g, "''");
+
+  const sql = `CALL ASK_LLM('shaurya.kumar@datamavericks.com', '${sanitizedPrompt}', '${model}')`;
+
+  const result = await querySnowflake(sql);
+
+  // DEBUG: Print remaining credits
+  try {
+    const creditQuery = `select remaining_credits from SNOWCONE_DB.SNOWCONE.CORTEX_BALANCE where user_email = 'shaurya.kumar@datamavericks.com';`;
+    const creditResult = await querySnowflake(creditQuery);
+    if (creditResult && creditResult.length > 0) {
+      console.log("[Cortex Debug] Remaining Credits:", creditResult[0]);
+    }
+  } catch (err) {
+    console.warn("Could not fetch remaining credits:", err);
+  }
+
+  if (!result || result.length === 0) {
+    throw new Error("No response from Cortex");
+  }
+
+  // The result is usually a single row with a single column containing the JSON string
+  const rawData = result[0] as Record<string, string>;
+  const jsonString = Object.values(rawData)[0];
+
+  try {
+    const parsed = JSON.parse(jsonString);
+    return parsed.response;
+  } catch (e) {
+    console.error("Failed to parse Cortex response", e);
+    throw new Error("Invalid response format from Cortex");
+  }
+}
