@@ -24,8 +24,9 @@ export default function DashboardLayout({
     onLocationSelect,
     children,
 }: DashboardLayoutProps) {
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [isAiOpen, setIsAiOpen] = useState(false);
 
     return (
         <div className="min-h-screen bg-background text-foreground">
@@ -79,6 +80,7 @@ export default function DashboardLayout({
                 className={`
           relative z-[1] transition-all duration-300 ease-in-out
           ${sidebarCollapsed ? "md:ml-16" : "md:ml-56"}
+          ${isAiOpen ? "xl:mr-96 lg:mr-80" : ""}
         `}
             >
                 {/* Mobile menu button + top bar */}
@@ -93,6 +95,7 @@ export default function DashboardLayout({
                         <TopBar
                             title={VIEW_TITLES[activeView]}
                             onLocationSelect={onLocationSelect}
+                            onToggleAi={() => setIsAiOpen(!isAiOpen)}
                         />
                     </div>
                 </div>
@@ -101,7 +104,7 @@ export default function DashboardLayout({
                 <main className="p-4 md:p-6">{children}</main>
             </div>
 
-            <Chatbot />
+            <Chatbot isOpen={isAiOpen} onClose={() => setIsAiOpen(false)} />
         </div>
     );
 }
