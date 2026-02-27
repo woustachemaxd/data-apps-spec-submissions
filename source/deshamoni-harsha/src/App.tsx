@@ -1,337 +1,506 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, Cell, LineChart, Line, Legend } from 'recharts';
-import { AlertTriangle, TrendingUp, TrendingDown, MapPin, Download, Search, CheckCircle2, Cpu, Sparkles, Terminal, ArrowUpDown, Database, Network, Moon, Sun, DollarSign, Activity, PackageOpen } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from "react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell
+} from "recharts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { querySnowflake } from "@/lib/snowflake";
+import { 
+  ArrowLeft, Search, TrendingUp, TrendingDown, AlertTriangle, 
+  Download, MapPin, Star, DollarSign, Package, Snowflake
+} from "lucide-react";
 
-// --- THE REAL TEXAS DATASET (Hardcoded so it never crashes) ---
-const storeData = [
-  { id: 1, name: "Downtown Flagship", city: "Austin", revenue: 349954, rating: 4.5, trend: 'up', waste: 3.9, wasteCategory: 'Dairy', orders: 1840, orderBreakdown: [{name: 'Dine-In', value: 900}, {name: 'Takeout', value: 600}, {name: 'Delivery', value: 340}] },
-  { id: 2, name: "Riverwalk", city: "San Antonio", revenue: 299431, rating: 4.3, trend: 'up', waste: 5.9, wasteCategory: 'Produce', orders: 1590, orderBreakdown: [{name: 'Dine-In', value: 800}, {name: 'Takeout', value: 500}, {name: 'Delivery', value: 290}] },
-  { id: 3, name: "Midtown Square", city: "Dallas", revenue: 295507, rating: 4.3, trend: 'up', waste: 4.9, wasteCategory: 'Dry Goods', orders: 1550, orderBreakdown: [{name: 'Dine-In', value: 750}, {name: 'Takeout', value: 500}, {name: 'Delivery', value: 300}] },
-  { id: 4, name: "Westside Commons", city: "Houston", revenue: 271485, rating: 4.2, trend: 'up', waste: 4.9, wasteCategory: 'Dairy', orders: 1420, orderBreakdown: [{name: 'Dine-In', value: 700}, {name: 'Takeout', value: 420}, {name: 'Delivery', value: 300}] },
-  { id: 5, name: "Tech District", city: "Austin", revenue: 225046, rating: 4.1, trend: 'up', waste: 7.0, wasteCategory: 'Produce', orders: 1180, orderBreakdown: [{name: 'Dine-In', value: 600}, {name: 'Takeout', value: 380}, {name: 'Delivery', value: 200}] },
-  { id: 6, name: "Pearl District", city: "San Antonio", revenue: 199665, rating: 4.0, trend: 'up', waste: 7.2, wasteCategory: 'Dry Goods', orders: 1050, orderBreakdown: [{name: 'Dine-In', value: 500}, {name: 'Takeout', value: 350}, {name: 'Delivery', value: 200}] },
-  { id: 7, name: "Lakeside Plaza", city: "Austin", revenue: 186081, rating: 3.7, trend: 'up', waste: 7.0, wasteCategory: 'Dairy', orders: 980, orderBreakdown: [{name: 'Dine-In', value: 450}, {name: 'Takeout', value: 330}, {name: 'Delivery', value: 200}] },
-  { id: 8, name: "Suburbia", city: "Plano", revenue: 174721, rating: 3.7, trend: 'up', waste: 6.8, wasteCategory: 'Produce', orders: 910, orderBreakdown: [{name: 'Dine-In', value: 400}, {name: 'Takeout', value: 310}, {name: 'Delivery', value: 200}] },
-  { id: 9, name: "Uptown Market", city: "Dallas", revenue: 163786, rating: 3.5, trend: 'up', waste: 7.0, wasteCategory: 'Dry Goods', orders: 850, orderBreakdown: [{name: 'Dine-In', value: 350}, {name: 'Takeout', value: 300}, {name: 'Delivery', value: 200}] },
-  { id: 10, name: "Heights Hub", city: "Houston", revenue: 154406, rating: 3.5, trend: 'down', waste: 12.2, wasteCategory: 'Dairy', orders: 820, orderBreakdown: [{name: 'Dine-In', value: 300}, {name: 'Takeout', value: 320}, {name: 'Delivery', value: 200}] },
-  { id: 11, name: "Airport Terminal", city: "Houston", revenue: 131069, rating: 3.9, trend: 'up', waste: 7.0, wasteCategory: 'Produce', orders: 690, orderBreakdown: [{name: 'Dine-In', value: 250}, {name: 'Takeout', value: 240}, {name: 'Delivery', value: 200}] },
-  { id: 12, name: "Old Town", city: "Fort Worth", revenue: 128624, rating: 3.3, trend: 'down', waste: 13.7, wasteCategory: 'Dry Goods', orders: 650, orderBreakdown: [{name: 'Dine-In', value: 200}, {name: 'Takeout', value: 250}, {name: 'Delivery', value: 200}] }
-];
+// ── Types ───────────────────────────────────────────────────────
+interface Location {
+  LOCATION_ID: number;
+  NAME: string;
+  CITY: string;
+  STATE: string;
+  MANAGER_NAME: string;
+}
 
-// --- ADVANCED 90-DAY MOCK DATA GENERATOR (To match your photo) ---
-const generate90DayData = () => {
-  const data = [];
-  let baseDineIn = 600;
-  let baseTakeout = 400;
-  let baseDelivery = 200;
-  
-  for (let i = 1; i <= 90; i++) {
-    // Simulate weekends with spikes
-    const isWeekend = i % 7 === 0 || i % 7 === 6;
-    const spike = isWeekend ? 1.5 + Math.random() * 0.5 : 0.8 + Math.random() * 0.4;
-    
-    const d = Math.floor(baseDineIn * spike);
-    const t = Math.floor(baseTakeout * spike);
-    const del = Math.floor(baseDelivery * spike);
-    
-    // Create a date label (e.g., Nov 1, Nov 2...)
-    const date = new Date(2025, 10, i); // Starts Nov 2025
-    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+interface DailySale {
+  LOCATION_ID: number;
+  SALE_DATE: string;
+  ORDER_TYPE: string;
+  REVENUE: number;
+}
 
-    data.push({
-      date: dateStr,
-      dineIn: d,
-      takeout: t,
-      delivery: del,
-      total: d + t + del
-    });
-  }
-  return data;
-};
+interface Inventory {
+  LOCATION_ID: number;
+  RECORD_DATE: string;
+  CATEGORY: string;
+  UNITS_WASTED: number;
+  WASTE_COST: number;
+}
 
-// Streaming text effect hook
-const useStreamingText = (text) => {
-  const [displayedText, setDisplayedText] = useState('');
-  useEffect(() => {
-    setDisplayedText('');
-    let i = 0;
-    const interval = setInterval(() => {
-      setDisplayedText(text.slice(0, i));
-      i++;
-      if (i > text.length) clearInterval(interval);
-    }, 12);
-    return () => clearInterval(interval);
-  }, [text]);
-  return displayedText;
-};
+interface Review {
+  LOCATION_ID: number;
+  REVIEW_DATE: string;
+  RATING: number;
+  REVIEW_TEXT: string;
+  CUSTOMER_NAME: string;
+}
 
-const getForecast = (waste, trend) => {
-  if (waste > 10 && trend === 'down') return 'Critical Decline';
-  if (waste > 10 && trend === 'up') return 'High Risk Margin';
-  if (waste <= 10 && trend === 'up') return 'Optimal Growth';
-  return 'Stable Operations';
-};
-
-const PIE_COLORS = ['#3b82f6', '#10b981', '#ef4444']; // Blue, Green, Red
-
+// ── Main App ────────────────────────────────────────────────────
 export default function App() {
-  const [selectedStore, setSelectedStore] = useState(storeData[0]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [sales, setSales] = useState<DailySale[]>([]);
+  const [inventory, setInventory] = useState<Inventory[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Interactive State
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortConfig, setSortConfig] = useState({ key: 'revenue', direction: 'desc' });
-  const [isDark, setIsDark] = useState(true);
+  const [dateFilter, setDateFilter] = useState<"all" | "30">("all");
 
-  // Generate the dense 90-day dataset once
-  const denseSalesData = useMemo(() => generate90DayData(), []);
-
-  // Sorting and Filtering
-  const sortedAndFilteredStores = useMemo(() => {
-    let filtered = storeData.filter(store => 
-      store.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      store.city.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    if (sortConfig.key) {
-      filtered.sort((a, b) => {
-        if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-      });
+  // Fetch Data
+  useEffect(() => {
+    async function fetchAllData() {
+      try {
+        const [locs, salesData, invData, revData] = await Promise.all([
+          querySnowflake<Location>("SELECT LOCATION_ID, NAME, CITY, STATE, MANAGER_NAME FROM LOCATIONS"),
+          querySnowflake<DailySale>("SELECT LOCATION_ID, SALE_DATE, ORDER_TYPE, REVENUE FROM DAILY_SALES"),
+          querySnowflake<Inventory>("SELECT LOCATION_ID, RECORD_DATE, CATEGORY, UNITS_WASTED, WASTE_COST FROM INVENTORY"),
+          querySnowflake<Review>("SELECT LOCATION_ID, REVIEW_DATE, RATING, REVIEW_TEXT, CUSTOMER_NAME FROM CUSTOMER_REVIEWS ORDER BY REVIEW_DATE DESC")
+        ]);
+        setLocations(locs || []);
+        setSales(salesData || []);
+        setInventory(invData || []);
+        setReviews(revData || []);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to connect to Snowflake");
+      } finally {
+        setLoading(false);
+      }
     }
-    return filtered;
-  }, [searchTerm, sortConfig]);
+    fetchAllData();
+  }, []);
 
-  const requestSort = (key) => setSortConfig(current => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' }));
+  // ── HOOKS (Memoized Data Processing) ──────────────────────────
+  const filteredSales = useMemo(() => {
+    if (dateFilter === "all") return sales;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return sales.filter(s => new Date(s.SALE_DATE) >= thirtyDaysAgo);
+  }, [sales, dateFilter]);
 
-  const exportToCSV = () => {
-    const headers = ['ID', 'Name', 'City', 'Revenue', 'Rating', 'Waste %', 'System Forecast'];
-    const rows = storeData.map(s => [s.id, s.name, s.city, s.revenue, s.rating, s.waste, getForecast(s.waste, s.trend)]);
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => `"${e.join('","')}"`)].join("\n");
-    const link = document.createElement("a"); link.href = encodeURI(csvContent); link.download = "snowcone_nexus_export.csv"; link.click();
+  const locationStats = useMemo(() => {
+    return locations.map(loc => {
+      const locSales = filteredSales.filter(s => s.LOCATION_ID === loc.LOCATION_ID);
+      const locInv = inventory.filter(i => i.LOCATION_ID === loc.LOCATION_ID);
+      const locRev = reviews.filter(r => r.LOCATION_ID === loc.LOCATION_ID);
+
+      const totalRevenue = locSales.reduce((sum, s) => sum + Number(s.REVENUE), 0);
+      const totalWaste = locInv.reduce((sum, i) => sum + Number(i.WASTE_COST), 0);
+      const avgRating = locRev.length ? locRev.reduce((sum, r) => sum + Number(r.RATING), 0) / locRev.length : 0;
+      
+      const sortedSales = [...locSales].sort((a, b) => new Date(a.SALE_DATE).getTime() - new Date(b.SALE_DATE).getTime());
+      const midPoint = Math.floor(sortedSales.length / 2);
+      const firstHalfRev = sortedSales.slice(0, midPoint).reduce((sum, s) => sum + Number(s.REVENUE), 0);
+      const secondHalfRev = sortedSales.slice(midPoint).reduce((sum, s) => sum + Number(s.REVENUE), 0);
+      const trend = firstHalfRev === 0 ? 0 : ((secondHalfRev - firstHalfRev) / firstHalfRev) * 100;
+
+      // New Status Logic
+      let status = "Normal";
+      if (trend > 0) {
+        status = "Healthy";
+      } else if (trend <= -15) {
+        status = "Critical";
+      }
+
+      return {
+        ...loc,
+        totalRevenue,
+        totalWaste,
+        avgRating,
+        trend,
+        status
+      };
+    }).filter(loc => (loc.NAME || "").toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [locations, filteredSales, inventory, reviews, searchTerm]);
+
+  const revenueTrendsData = useMemo(() => {
+    const dateMap: Record<string, any> = {};
+    filteredSales.forEach(s => {
+      if (!dateMap[s.SALE_DATE]) dateMap[s.SALE_DATE] = { date: s.SALE_DATE, 'dine-in': 0, takeout: 0, delivery: 0 };
+      if(dateMap[s.SALE_DATE][s.ORDER_TYPE] !== undefined) {
+        dateMap[s.SALE_DATE][s.ORDER_TYPE] += Number(s.REVENUE);
+      }
+    });
+    return Object.values(dateMap).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [filteredSales]);
+
+
+  // ── RENDER HELPERS ──────────────────────────────────────────────
+  const selectedLocation = locations.find(l => l.LOCATION_ID === selectedLocationId);
+
+  const exportCSV = () => {
+    const headers = ["Location", "Manager", "Revenue", "Waste Cost", "Avg Rating", "Trend %", "Status"];
+    const csvData = locationStats.map(loc => 
+      `${loc.NAME},${loc.MANAGER_NAME},${loc.totalRevenue.toFixed(2)},${loc.totalWaste.toFixed(2)},${loc.avgRating.toFixed(1)},${loc.trend.toFixed(1)},${loc.status}`
+    );
+    const blob = new Blob([[headers.join(","), ...csvData].join("\n")], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "snowcone_nexus_export.csv";
+    a.click();
   };
 
-  const aiInsightText = useMemo(() => {
-    if (!selectedStore) return "Awaiting target selection...";
-    if (selectedStore.waste > 10) return `CRITICAL ANOMALY: ${selectedStore.name} exhibits a ${selectedStore.waste}% resource drain (${selectedStore.wasteCategory}). Recommend immediate audit of supply chain logs in ${selectedStore.city}.`;
-    if (selectedStore.trend === 'up') return `OPTIMAL: ${selectedStore.name} is outperforming baselines. High CSAT correlates perfectly with low waste (${selectedStore.waste}%).`;
-    return `NOTICE: ${selectedStore.name} requires monitoring. Revenue sits at $${selectedStore.revenue.toLocaleString()} with a ${selectedStore.trend}ward trajectory.`;
-  }, [selectedStore]);
-  const streamedInsight = useStreamingText(aiInsightText);
+  // ── SKELETON LOADER ─────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0B0F19] p-6 sm:p-10 flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-4">
+          <Snowflake className="text-cyan-400 h-12 w-12 animate-spin-slow" />
+          <p className="text-cyan-400/70 font-medium tracking-widest uppercase text-sm">Initializing Nexus...</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Dynamic Theme Variables
-  const theme = {
-    bg: isDark ? 'bg-[#030712]' : 'bg-slate-50', text: isDark ? 'text-slate-200' : 'text-slate-900',
-    card: isDark ? 'bg-[#0f172a]/90 border-slate-800 shadow-2xl' : 'bg-white border-slate-200 shadow-xl',
-    cardHeader: isDark ? 'border-slate-800' : 'border-slate-100', muted: isDark ? 'text-slate-400' : 'text-slate-500',
-    chartGrid: isDark ? '#1e293b' : '#f1f5f9', chartText: isDark ? '#64748b' : '#94a3b8',
-    input: isDark ? 'bg-black/40 border-slate-700 focus:ring-cyan-500 text-white' : 'bg-slate-50 border-slate-300 focus:ring-blue-500 text-slate-900',
-    rowHover: isDark ? 'hover:bg-white/[0.04]' : 'hover:bg-slate-50', rowSelected: isDark ? 'bg-indigo-500/20 border-indigo-500' : 'bg-indigo-50 border-indigo-600',
-    tooltip: { content: { backgroundColor: isDark ? '#0f172a' : '#ffffff', borderColor: isDark ? '#1e293b' : '#e2e8f0', borderRadius: '8px', color: isDark ? '#f8fafc' : '#0f172a' }, item: { color: isDark ? '#f8fafc' : '#0f172a', fontWeight: 500 }, label: { color: isDark ? '#94a3b8' : '#64748b', marginBottom: '4px', fontWeight: 600 } }
-  };
-
-  // KPI Calculations
-  const totalNetworkRev = storeData.reduce((acc, curr) => acc + curr.revenue, 0);
-  const avgNetworkRating = (storeData.reduce((acc, curr) => acc + curr.rating, 0) / storeData.length).toFixed(1);
-  const criticalNodes = storeData.filter(s => s.waste > 10).length;
+  if (error) return (
+    <div className="p-10 bg-[#0B0F19] text-rose-400 text-center flex flex-col items-center justify-center min-h-screen">
+      <AlertTriangle className="h-12 w-12 mb-4" />
+      <h2 className="text-2xl font-bold">Connection Interrupted</h2>
+      <p className="mt-2 text-slate-400">{error}</p>
+    </div>
+  );
 
   return (
-    <div className={`min-h-screen font-sans transition-colors duration-300 pb-10 overflow-hidden relative ${theme.bg} ${theme.text}`}>
-      {isDark && (
-        <>
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
-          <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/20 blur-[120px] rounded-full pointer-events-none" />
-          <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-cyan-600/10 blur-[120px] rounded-full pointer-events-none" />
-        </>
-      )}
-
-      <div className="max-w-[1600px] mx-auto p-4 md:p-8 relative z-10 space-y-6">
+    <div className="min-h-screen bg-[#0B0F19] text-slate-200 transition-colors duration-300 font-sans selection:bg-cyan-900 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:24px_24px]">
+      
+      {/* ── NAVBAR ───────────────────────────────────────────── */}
+      <nav className="border-b border-white/5 sticky top-0 z-20 bg-[#0B0F19]/80 backdrop-blur-xl px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => setSelectedLocationId(null)}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white shadow-[0_0_15px_rgba(34,211,238,0.4)] group-hover:scale-105 transition-all">
+            <Snowflake size={20} />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-extrabold tracking-tight text-2xl hidden sm:block text-slate-100 leading-none">
+              Snowcone <span className="text-cyan-400">NEXUS</span>
+            </span>
+            <span className="text-[10px] text-slate-500 tracking-widest uppercase mt-1 hidden sm:block">
+              Data Apps Specialization
+            </span>
+          </div>
+        </div>
         
-        {/* HEADER */}
-        <header className={`flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
-          <div className="flex items-center gap-4">
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? 'bg-gradient-to-br from-cyan-400 to-indigo-600 shadow-[0_0_30px_rgba(56,189,248,0.3)]' : 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/30'}`}>
-              <Network size={26} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight flex items-center gap-2">Snowcone <span className={`text-transparent bg-clip-text ${isDark ? 'bg-gradient-to-r from-cyan-400 to-indigo-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>NEXUS</span></h1>
-              <p className={`text-xs font-mono tracking-widest uppercase mt-1 ${theme.muted}`}>Data Apps Specialization Test</p>
-            </div>
-          </div>
-          <div className="flex gap-3 w-full md:w-auto mt-4 md:mt-0">
-            <button onClick={() => setIsDark(!isDark)} className={`p-2.5 rounded-lg border transition-all ${isDark ? 'bg-slate-800 border-slate-700 hover:bg-slate-700 text-yellow-400' : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600 shadow-sm'}`}><Sun size={20} /></button>
-            <button onClick={exportToCSV} className={`flex-1 md:flex-none flex justify-center items-center gap-2 px-6 py-2.5 rounded-lg transition-all font-semibold shadow-lg ${isDark ? 'bg-white/10 hover:bg-white/20 border border-white/10 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-500/30'}`}><Download size={16} /> Export CSV</button>
-          </div>
-        </header>
-
-        {/* TOP KPI RIBBON (Fills space, adds massive professional value) */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className={`p-5 rounded-2xl border flex items-center gap-4 ${theme.card}`}>
-            <div className={`p-3 rounded-lg ${isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}><DollarSign size={24} /></div>
-            <div><p className={`text-xs font-mono uppercase ${theme.muted}`}>Network Rev (YTD)</p><p className="text-2xl font-bold">${totalNetworkRev.toLocaleString()}</p></div>
-          </div>
-          <div className={`p-5 rounded-2xl border flex items-center gap-4 ${theme.card}`}>
-            <div className={`p-3 rounded-lg ${isDark ? 'bg-emerald-500/20 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}><Activity size={24} /></div>
-            <div><p className={`text-xs font-mono uppercase ${theme.muted}`}>Avg Network CSAT</p><p className="text-2xl font-bold">{avgNetworkRating} <span className="text-amber-400">★</span></p></div>
-          </div>
-          <div className={`p-5 rounded-2xl border flex items-center gap-4 ${theme.card}`}>
-            <div className={`p-3 rounded-lg ${criticalNodes > 0 ? (isDark ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-600') : (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-600')}`}><AlertTriangle size={24} /></div>
-            <div><p className={`text-xs font-mono uppercase ${theme.muted}`}>Critical Nodes</p><p className={`text-2xl font-bold ${criticalNodes > 0 ? 'text-red-500' : ''}`}>{criticalNodes} Action Required</p></div>
-          </div>
-          <div className={`p-5 rounded-2xl border flex items-center gap-4 ${theme.card}`}>
-            <div className={`p-3 rounded-lg ${isDark ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}><PackageOpen size={24} /></div>
-            <div><p className={`text-xs font-mono uppercase ${theme.muted}`}>Primary Waste Driver</p><p className="text-2xl font-bold">Dairy</p></div>
-          </div>
+        <div className="flex items-center gap-3 sm:gap-5">
+          <select 
+            className="bg-[#131B2C] text-sm font-medium rounded-lg px-4 py-2 border border-[#2A3441] text-slate-300 outline-none focus:ring-2 ring-cyan-500/50 transition-shadow cursor-pointer hover:bg-[#1A2438]"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as "all" | "30")}
+          >
+            <option value="all">Last 90 Days</option>
+            <option value="30">Last 30 Days</option>
+          </select>
+          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-[#131B2C] hover:bg-[#1A2438] border border-[#2A3441] text-slate-200 rounded-lg font-medium transition-colors text-sm shadow-sm">
+            <Download size={16} /> <span className="hidden sm:inline">Export CSV</span>
+          </button>
         </div>
+      </nav>
 
-        {/* MIDDLE SECTION: Table & Inspector */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
-          
-          {/* LEFT: Scorecard */}
-          <div className={`xl:col-span-8 border rounded-2xl backdrop-blur-xl overflow-hidden flex flex-col ${theme.card}`}>
-            <div className={`p-5 border-b flex justify-between items-center ${theme.cardHeader}`}>
-              <h2 className="text-lg font-bold flex items-center gap-2"><MapPin size={18} className={isDark ? "text-cyan-500" : "text-blue-600"}/> Location Scorecard</h2>
-              <div className="relative w-64">
-                <Search className={`absolute left-3 top-2.5 ${theme.muted}`} size={16} />
-                <input type="text" placeholder="Filter nodes..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-2 transition-all ${theme.input}`} />
-              </div>
-            </div>
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className={isDark ? 'bg-slate-900/50' : 'bg-slate-50'}>
-                    <th onClick={() => requestSort('name')} className={`cursor-pointer py-3 px-5 text-[10px] font-mono uppercase ${theme.muted} ${isDark ? 'hover:text-cyan-400' : 'hover:text-blue-600'}`}>Node <ArrowUpDown size={12} className="inline"/></th>
-                    <th onClick={() => requestSort('revenue')} className={`cursor-pointer py-3 px-5 text-[10px] font-mono uppercase ${theme.muted} ${isDark ? 'hover:text-cyan-400' : 'hover:text-blue-600'}`}>Revenue <ArrowUpDown size={12} className="inline"/></th>
-                    <th onClick={() => requestSort('rating')} className={`cursor-pointer py-3 px-5 text-[10px] font-mono uppercase ${theme.muted} ${isDark ? 'hover:text-cyan-400' : 'hover:text-blue-600'}`}>CSAT <ArrowUpDown size={12} className="inline"/></th>
-                    <th className={`py-3 px-5 text-[10px] font-mono uppercase ${theme.muted}`}>System Flag</th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDark ? 'divide-slate-800/50' : 'divide-slate-100'}`}>
-                  {sortedAndFilteredStores.map(store => {
-                    const isSelected = selectedStore?.id === store.id;
-                    const hasIssue = store.waste > 10;
-                    return (
-                      <tr key={store.id} onClick={() => setSelectedStore(store)} className={`cursor-pointer transition-all border-l-4 ${isSelected ? theme.rowSelected : `border-transparent ${theme.rowHover}`}`}>
-                        <td className="py-4 px-5">
-                          <div className={`font-bold text-sm ${isSelected && isDark ? 'text-cyan-400' : ''} ${isSelected && !isDark ? 'text-indigo-700' : ''}`}>{store.name}</div>
-                          <div className={`text-xs font-mono mt-0.5 ${theme.muted}`}>{store.city}</div>
-                        </td>
-                        <td className="py-4 px-5 font-mono text-sm">${store.revenue.toLocaleString()}</td>
-                        <td className="py-4 px-5 text-sm font-medium">{store.rating} <span className="text-amber-400">★</span></td>
-                        <td className="py-4 px-5">{hasIssue ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-red-500/10 text-red-500 border border-red-500/20"><AlertTriangle size={12} /> {getForecast(store.waste, store.trend)}</span> : <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"><CheckCircle2 size={12} /> Healthy</span>}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* RIGHT: Node Inspector (Tightened up) */}
-          <div className="xl:col-span-4 flex flex-col gap-6">
-            <div className={`border rounded-2xl p-1 relative overflow-hidden flex-shrink-0 transition-colors duration-300 ${isDark ? 'bg-gradient-to-br from-indigo-900/40 to-black border-indigo-500/30' : 'bg-gradient-to-br from-blue-100 to-indigo-50 border-indigo-200'}`}>
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50" />
-              <div className={`backdrop-blur-md rounded-xl p-4 ${isDark ? 'bg-black/40' : 'bg-white/60'}`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Cpu size={18} className={isDark ? "text-indigo-400" : "text-indigo-600"} />
-                  <h3 className={`font-bold ${isDark ? 'text-white' : 'text-indigo-900'}`}>Cortex Analyst Engine</h3>
-                </div>
-                <div className={`rounded-lg p-3 border min-h-[90px] relative font-mono text-xs leading-relaxed transition-colors duration-300 ${isDark ? 'bg-[#050505]/80 border-white/5 text-cyan-50' : 'bg-white border-indigo-100 text-indigo-900 shadow-inner'}`}>
-                  <Sparkles size={14} className={`absolute top-3 right-3 ${isDark ? 'text-indigo-500/50' : 'text-indigo-400'}`} />
-                  <p className="mr-6"><span className={isDark ? "text-cyan-400" : "text-blue-600"}>{'>'}</span> {streamedInsight}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`border rounded-2xl p-5 flex-1 flex flex-col gap-4 ${theme.card}`}>
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Terminal size={18} className={theme.muted}/> Drill-Down</h2>
-              {selectedStore && (
-                <div className="animate-in fade-in flex flex-col gap-4 flex-1">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+        {!selectedLocationId ? (
+          // ── DASHBOARD OVERVIEW ───────────────────────────────────
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out">
+            
+            {/* KPI Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md overflow-hidden relative group hover:border-blue-500/30 transition-colors">
+                <CardContent className="p-6 flex items-center gap-5">
+                  <div className="p-4 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-2xl shadow-inner group-hover:scale-105 transition-transform"><DollarSign size={28} /></div>
                   <div>
-                    <h3 className={`text-2xl font-black ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedStore.name}</h3>
-                    <p className={`text-xs font-mono mt-1 ${theme.muted}`}>ID: SNW-{selectedStore.id}00 • {selectedStore.city}</p>
+                    <p className="text-xs text-slate-400 font-semibold tracking-widest uppercase mb-1">Network Rev (YTD)</p>
+                    <h3 className="text-3xl font-extrabold tracking-tight text-slate-100">${(locationStats.reduce((sum, l) => sum + l.totalRevenue, 0) / 1000).toFixed(1)}k</h3>
                   </div>
-                  
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                      <p className={`text-[10px] uppercase font-mono mb-1 ${theme.muted}`}>Waste Index</p>
-                      <p className={`text-xl font-bold ${selectedStore.waste > 10 ? 'text-red-500' : 'text-emerald-500'}`}>{selectedStore.waste}%</p>
-                    </div>
-                    <div className={`rounded-xl p-3 border ${isDark ? 'bg-slate-900/50 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                      <p className={`text-[10px] uppercase font-mono mb-1 ${theme.muted}`}>Primary Drain</p>
-                      <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>{selectedStore.wasteCategory}</p>
-                    </div>
-                  </div>
+                </CardContent>
+              </Card>
 
-                  <div className="mt-auto">
-                    <p className={`text-[10px] uppercase font-mono mb-2 ${theme.muted}`}>Channel Split (Last 7 Days)</p>
-                    <div className={`flex h-3 w-full rounded-full overflow-hidden ${isDark ? 'bg-slate-800' : 'bg-slate-200'}`}>
-                      {selectedStore.orderBreakdown.map((item, i) => {
-                        const total = selectedStore.orderBreakdown.reduce((s, it) => s + it.value, 0) || 1;
-                        return (<div key={item.name} className="h-full" style={{ width: `${(item.value / total) * 100}%`, backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />);
-                      })}
-                    </div>
-                    <div className="flex gap-4 mt-2 justify-between">
-                      {selectedStore.orderBreakdown.map((item, i) => {
-                         const total = selectedStore.orderBreakdown.reduce((s, it) => s + it.value, 0) || 1;
-                         return (
-                          <div key={item.name} className="flex items-center gap-1.5">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}></span>
-                            <span className={`text-[10px] font-mono ${theme.muted}`}>{String(item.name).substring(0,4)}</span>
-                            <span className={`text-[10px] font-bold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{Math.round((item.value / total) * 100)}%</span>
-                          </div>
-                         );
-                      })}
-                    </div>
+              <Card className="border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md overflow-hidden relative group hover:border-emerald-500/30 transition-colors">
+                <CardContent className="p-6 flex items-center gap-5">
+                  <div className="p-4 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl shadow-inner group-hover:scale-105 transition-transform"><Star size={28} /></div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-semibold tracking-widest uppercase mb-1">Avg Network CSAT</p>
+                    <h3 className="text-3xl font-extrabold tracking-tight text-slate-100 flex items-center gap-2">
+                      {(locationStats.reduce((sum, l) => sum + l.avgRating, 0) / (locationStats.length || 1)).toFixed(1)} 
+                      <Star size={20} className="text-amber-400 fill-amber-400" />
+                    </h3>
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md overflow-hidden relative group hover:border-rose-500/30 transition-colors">
+                <CardContent className="p-6 flex items-center gap-5">
+                  <div className="p-4 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-2xl shadow-inner group-hover:scale-105 transition-transform"><AlertTriangle size={28} /></div>
+                  <div>
+                    <p className="text-xs text-slate-400 font-semibold tracking-widest uppercase mb-1">Critical Nodes</p>
+                    <h3 className="text-3xl font-extrabold tracking-tight text-rose-500">
+                      {locationStats.filter(l => l.status === "Critical").length} <span className="text-xl font-bold">Action Required</span>
+                    </h3>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Location Scorecard */}
+            <Card className="border border-white/5 shadow-xl bg-[#131B2C]/80 backdrop-blur-xl overflow-hidden">
+              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/5 pb-5">
+                <div className="flex items-center gap-2">
+                  <MapPin className="text-cyan-400" size={20} />
+                  <CardTitle className="text-lg font-bold text-slate-100">Location Scorecard</CardTitle>
                 </div>
-              )}
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Filter nodes..." 
+                    className="w-full pl-10 pr-4 py-2 text-sm bg-[#0B0F19] border border-white/5 text-slate-200 rounded-lg focus:outline-none focus:border-cyan-500/50 transition-all placeholder:text-slate-600"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </CardHeader>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-[10px] text-slate-500 uppercase bg-[#0B0F19]/50 tracking-widest border-b border-white/5">
+                    <tr>
+                      <th className="px-6 py-4 font-semibold">Node ↑↓</th>
+                      <th className="px-6 py-4 font-semibold">Revenue ↑↓</th>
+                      <th className="px-6 py-4 font-semibold">Waste Cost</th>
+                      <th className="px-6 py-4 font-semibold">CSAT ↑↓</th>
+                      <th className="px-6 py-4 font-semibold">System Flag</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {locationStats.map((loc) => (
+                      <tr 
+                        key={loc.LOCATION_ID} 
+                        onClick={() => setSelectedLocationId(loc.LOCATION_ID)}
+                        className="group hover:bg-indigo-500/10 hover:border-l-2 hover:border-cyan-400 border-l-2 border-transparent cursor-pointer transition-all duration-150"
+                      >
+                        <td className="px-6 py-5">
+                          <div className="font-bold text-cyan-400 group-hover:text-cyan-300 transition-colors">{loc.NAME}</div>
+                          <div className="text-xs text-slate-500 mt-1">{loc.CITY}, {loc.STATE}</div>
+                        </td>
+                        <td className="px-6 py-5 font-medium text-slate-300">${loc.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td className="px-6 py-5 font-medium text-slate-400">${loc.totalWaste.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                        <td className="px-6 py-5">
+                          <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                            {loc.avgRating.toFixed(1)} <Star size={14} className="text-amber-400 fill-amber-400" />
+                          </div>
+                        </td>
+                        <td className="px-6 py-5">
+                          {loc.status === "Critical" && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-2 animate-pulse"></span> Critical
+                            </span>
+                          )}
+                          {loc.status === "Healthy" && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span> Healthy
+                            </span>
+                          )}
+                          {loc.status === "Normal" && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold bg-slate-500/10 text-slate-300 border border-slate-500/30">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2"></span> Normal
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card className="border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold text-slate-200">Revenue Metrics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full mt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueTrendsData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorDineIn" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                          </linearGradient>
+                          <linearGradient id="colorTakeout" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                        <XAxis dataKey="date" tick={{fontSize: 12, fill: "#64748b"}} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month:'short', day:'numeric'})} axisLine={false} tickLine={false} />
+                        <YAxis tick={{fontSize: 12, fill: "#64748b"}} tickFormatter={(val) => `$${val/1000}k`} axisLine={false} tickLine={false} />
+                        <Tooltip 
+                          contentStyle={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(8px)', color: '#f8fafc' }}
+                          formatter={(val: number) => `$${val.toFixed(0)}`} 
+                          labelFormatter={(label) => new Date(label).toDateString()} 
+                        />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '10px', color: '#94a3b8' }} />
+                        <Area type="monotone" dataKey="dine-in" stackId="1" stroke="#22d3ee" strokeWidth={2} fill="url(#colorDineIn)" />
+                        <Area type="monotone" dataKey="takeout" stackId="1" stroke="#6366f1" strokeWidth={2} fill="url(#colorTakeout)" />
+                        <Area type="monotone" dataKey="delivery" stackId="1" stroke="#c084fc" strokeWidth={2} fill="#c084fc" fillOpacity={0.1} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold text-slate-200">Waste Drivers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] w-full mt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[...locationStats].sort((a,b) => b.totalWaste - a.totalWaste).slice(0, 8)} layout="vertical" margin={{ left: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#ffffff10" />
+                        <XAxis type="number" tickFormatter={(val) => `$${val}`} tick={{fontSize: 12, fill: "#64748b"}} axisLine={false} tickLine={false} />
+                        <YAxis dataKey="NAME" type="category" width={110} tick={{fontSize: 12, fill: "#cbd5e1", fontWeight: 500}} axisLine={false} tickLine={false} />
+                        <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(8px)', color: '#f8fafc' }} formatter={(val: number) => `$${val.toFixed(2)}`} />
+                        <Bar dataKey="totalWaste" radius={[0, 4, 4, 0]} barSize={20}>
+                          {locationStats.sort((a,b) => b.totalWaste - a.totalWaste).slice(0, 8).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.status === "Critical" ? "#f43f5e" : entry.status === "Normal" ? "#475569" : "#10b981"} className="transition-all hover:opacity-80" />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
-        </div>
+        ) : (
+          // ── DRILL-DOWN VIEW ──────────────────────────────────────
+          <div className="space-y-6 animate-in slide-in-from-right-8 duration-500 ease-out">
+            <button 
+              onClick={() => setSelectedLocationId(null)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-300 hover:text-cyan-400 bg-[#131B2C] border border-[#2A3441] rounded-lg hover:bg-[#1A2438] hover:border-cyan-500/30 transition-all shadow-sm"
+            >
+              <ArrowLeft size={16} /> Back to Dashboard
+            </button>
 
-        {/* BOTTOM SECTION: The Massive 90-Day Charts (Matches your Photo) */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Chart 1: Sales Trend Over Time (Filled Area) */}
-          <div className={`border rounded-2xl p-6 ${theme.card}`}>
-            <h2 className="text-lg font-bold mb-6">Sales Trend Over Time</h2>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={denseSalesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.6}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={theme.chartGrid} vertical={false} />
-                  <XAxis dataKey="date" stroke={theme.chartText} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} minTickGap={30} />
-                  <YAxis stroke={theme.chartText} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                  <RechartsTooltip contentStyle={theme.tooltip.content} itemStyle={theme.tooltip.item} labelStyle={theme.tooltip.label} />
-                  <Area type="monotone" dataKey="total" name="Total Revenue" stroke="#2563eb" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-white/10">
+              <div>
+                <h1 className="text-4xl font-extrabold tracking-tight text-white">{selectedLocation?.NAME}</h1>
+                <p className="text-slate-400 mt-2 flex items-center gap-2 font-medium text-sm">
+                  <MapPin size={16} className="text-cyan-500" /> {selectedLocation?.CITY}, {selectedLocation?.STATE} <span className="text-slate-700">|</span> Manager: {selectedLocation?.MANAGER_NAME}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Chart 2: Revenue by Order Type (Stacked Bar) */}
-          <div className={`border rounded-2xl p-6 ${theme.card}`}>
-            <h2 className="text-lg font-bold mb-6">Revenue by Order Type</h2>
-            <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={denseSalesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={theme.chartGrid} vertical={false} />
-                  <XAxis dataKey="date" stroke={theme.chartText} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} minTickGap={30} />
-                  <YAxis stroke={theme.chartText} axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                  <RechartsTooltip cursor={{fill: isDark ? '#ffffff05' : '#00000005'}} contentStyle={theme.tooltip.content} itemStyle={theme.tooltip.item} labelStyle={theme.tooltip.label} />
-                  <Legend wrapperStyle={{ fontSize: '12px', marginTop: '10px' }} />
-                  <Bar dataKey="delivery" name="Delivery" stackId="a" fill="#ef4444" />
-                  <Bar dataKey="takeout" name="Takeout" stackId="a" fill="#10b981" />
-                  <Bar dataKey="dineIn" name="Dine-In" stackId="a" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
+            {(() => {
+              const locSales = filteredSales.filter(s => s.LOCATION_ID === selectedLocationId);
+              const locInv = inventory.filter(i => i.LOCATION_ID === selectedLocationId);
+              const locRev = reviews.filter(r => r.LOCATION_ID === selectedLocationId).slice(0, 6); 
+              
+              const wasteByCategory = locInv.reduce((acc, curr) => {
+                acc[curr.CATEGORY] = (acc[curr.CATEGORY] || 0) + Number(curr.WASTE_COST);
+                return acc;
+              }, {} as Record<string, number>);
+              
+              const pieData = Object.entries(wasteByCategory).map(([name, value]) => ({ name, value }));
+              const COLORS = ['#22d3ee', '#34d399', '#fbbf24', '#f43f5e', '#8b5cf6'];
 
-      </div>
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-2">
+                  <Card className="lg:col-span-2 border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md">
+                    <CardHeader>
+                      <CardTitle className="text-base font-bold text-slate-200">Daily Revenue Timeline</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={locSales.reduce((acc: any[], curr) => {
+                            const existing = acc.find(x => x.date === curr.SALE_DATE);
+                            if (existing) existing.total += Number(curr.REVENUE);
+                            else acc.push({ date: curr.SALE_DATE, total: Number(curr.REVENUE) });
+                            return acc;
+                          }, []).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                            <XAxis dataKey="date" tick={{fontSize: 12, fill: "#64748b"}} tickFormatter={(val) => new Date(val).toLocaleDateString(undefined, {month:'short', day:'numeric'})} axisLine={false} tickLine={false} />
+                            <YAxis tick={{fontSize: 12, fill: "#64748b"}} tickFormatter={(val) => `$${val}`} axisLine={false} tickLine={false} />
+                            <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(8px)' }} formatter={(val: number) => `$${val.toFixed(2)}`} />
+                            <Bar dataKey="total" fill="#22d3ee" radius={[4, 4, 0, 0]} className="hover:opacity-80 transition-opacity" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md">
+                    <CardHeader>
+                      <CardTitle className="text-base font-bold text-slate-200">Waste Matrix</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center justify-center">
+                      <div className="h-[200px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={85} paddingAngle={4} dataKey="value" stroke="none">
+                              {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="hover:opacity-80 outline-none transition-opacity shadow-[0_0_10px_rgba(255,255,255,0.2)]" />)}
+                            </Pie>
+                            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(15,23,42,0.9)', backdropFilter: 'blur(8px)' }} formatter={(val: number) => `$${val.toFixed(2)}`} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center mt-6 text-[11px] uppercase tracking-wider font-semibold">
+                        {pieData.map((entry, index) => (
+                          <div key={entry.name} className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full shadow-[0_0_5px_currentColor]" style={{backgroundColor: COLORS[index % COLORS.length], color: COLORS[index % COLORS.length]}}></div>
+                            <span className="text-slate-400">{entry.name.replace('_', ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="lg:col-span-3 border border-white/5 shadow-lg bg-[#111827]/60 backdrop-blur-md mt-2">
+                    <CardHeader>
+                      <CardTitle className="text-base font-bold flex items-center gap-2 text-slate-200">
+                        <Star className="text-cyan-400 fill-cyan-400/20" size={18} /> Customer Telemetry
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {locRev.length > 0 ? locRev.map((r, i) => (
+                          <div key={i} className="p-5 rounded-xl bg-[#0B0F19]/50 border border-white/5 flex flex-col justify-between hover:border-cyan-500/20 transition-all shadow-inner">
+                            <div>
+                              <div className="flex justify-between items-start mb-3">
+                                <span className="font-bold text-slate-200">{r.CUSTOMER_NAME}</span>
+                                <div className="flex gap-0.5 bg-[#131B2C] px-2 py-1 rounded border border-white/5">
+                                  {[...Array(5)].map((_, idx) => (
+                                    <Star key={idx} size={10} className={idx < Math.floor(r.RATING) ? "text-amber-400 fill-amber-400" : "text-slate-700"} />
+                                  ))}
+                                </div>
+                              </div>
+                              <p className="text-sm text-slate-400 leading-relaxed italic">"{r.REVIEW_TEXT}"</p>
+                            </div>
+                            <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-5">
+                              {new Date(r.REVIEW_DATE).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                            </div>
+                          </div>
+                        )) : (
+                          <p className="text-slate-500 text-sm col-span-full text-center py-10 bg-[#0B0F19]/50 rounded-xl border border-white/5">No telemetry data found for this node.</p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
