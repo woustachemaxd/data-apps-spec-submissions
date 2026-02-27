@@ -35,26 +35,34 @@ export default function Sidebar({
         bg-sidebar text-sidebar-foreground
         border-r border-sidebar-border
         transition-all duration-300 ease-in-out
+        backdrop-blur-sm
         ${collapsed ? "w-16" : "w-56"}
       `}
         >
             {/* Brand */}
             <div className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border">
-                <div className="w-8 h-8 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 bg-sidebar-primary flex items-center justify-center flex-shrink-0">
                     <span className="text-sidebar-primary-foreground text-sm font-bold">S</span>
                 </div>
                 {!collapsed && (
                     <div className="overflow-hidden">
-                        <p className="text-sm font-semibold truncate">Snowcone</p>
-                        <p className="text-[10px] text-sidebar-foreground/60 uppercase tracking-wider truncate">
+                        <p className="text-sm font-semibold truncate tracking-wide">Snowcone</p>
+                        <p className="text-[9px] text-sidebar-foreground/50 uppercase tracking-[0.3em] truncate">
                             Warehouse
                         </p>
                     </div>
                 )}
             </div>
 
+            {/* Version tag */}
+            {!collapsed && (
+                <div className="px-4 pt-2 pb-1">
+                    <span className="bp-spec text-[8px] text-sidebar-foreground/30">v2.4.0_OP_DASH</span>
+                </div>
+            )}
+
             {/* Navigation */}
-            <nav className="flex-1 py-3 px-2 space-y-1">
+            <nav className="flex-1 py-2 px-2 space-y-0.5">
                 {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
                     const isActive = activeView === id;
                     return (
@@ -62,16 +70,17 @@ export default function Sidebar({
                             key={id}
                             onClick={() => onViewChange(id)}
                             className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg
-                text-sm font-medium transition-colors duration-150
+                w-full flex items-center gap-3 px-3 py-2.5
+                text-xs font-medium uppercase tracking-[0.1em]
+                transition-colors duration-150
                 ${isActive
-                                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                    ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-2 border-sidebar-primary"
+                                    : "text-sidebar-foreground/60 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground border-l-2 border-transparent"
                                 }
               `}
                             title={collapsed ? label : undefined}
                         >
-                            <Icon size={18} className="flex-shrink-0" />
+                            <Icon size={16} className="flex-shrink-0" />
                             {!collapsed && <span>{label}</span>}
                         </button>
                     );
@@ -82,12 +91,12 @@ export default function Sidebar({
             <div className="px-2 pb-3">
                 <button
                     onClick={onToggleCollapse}
-                    className="w-full flex items-center justify-center py-2 rounded-lg
-            text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/50
+                    className="w-full flex items-center justify-center py-2
+            text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50
             transition-colors duration-150"
                     title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                 >
-                    {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                    {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>
             </div>
         </aside>
