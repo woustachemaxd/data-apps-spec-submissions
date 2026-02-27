@@ -212,6 +212,44 @@ export function LocationCompare({
               Back to Dashboard
             </Button>
             <div className="flex items-center gap-3">
+              {/* Quick Date Filters */}
+              <div className="hidden lg:flex items-center gap-1">
+                {[
+                  { label: "7D", days: 7 },
+                  { label: "30D", days: 30 },
+                  { label: "6M", days: 180 },
+                  { label: "1Y", days: 365 },
+                  { label: "All", days: null },
+                ].map((preset) => {
+                  const today = new Date("2026-01-31");
+                  let start: string;
+                  if (preset.days === null) {
+                    start = "2020-01-01";
+                  } else {
+                    const startDate = new Date(today);
+                    startDate.setDate(startDate.getDate() - preset.days);
+                    start = startDate.toISOString().split("T")[0];
+                  }
+                  const isActive = dateRange.start === start;
+                  return (
+                    <Button
+                      key={preset.label}
+                      variant={isActive ? "default" : "outline"}
+                      size="sm"
+                      onClick={() =>
+                        setDateRange({
+                          start,
+                          end: today.toISOString().split("T")[0],
+                        })
+                      }
+                      className="text-xs px-2"
+                    >
+                      {preset.label}
+                    </Button>
+                  );
+                })}
+              </div>
+
               {/* Date Range Filter */}
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <DatePicker
