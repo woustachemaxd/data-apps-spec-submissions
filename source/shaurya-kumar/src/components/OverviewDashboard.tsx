@@ -181,21 +181,24 @@ export default function OverviewDashboard({ onNavigateToLocations }: OverviewDas
                             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                             <XAxis
                                 dataKey="date"
-                                tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
-                                interval="preserveStartEnd"
+                                tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }}
+                                interval={Math.max(0, Math.ceil(revenueByDate.length / 12) - 1)}
                             />
                             <YAxis
-                                tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                                tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }}
                                 tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                             />
                             <Tooltip
                                 contentStyle={{
                                     backgroundColor: "var(--color-popover)",
+                                    color: "var(--color-popover-foreground)",
                                     border: "1px solid var(--color-border)",
                                     borderRadius: "0",
                                     fontSize: "11px",
                                     fontFamily: "'JetBrains Mono', monospace",
                                 }}
+                                labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                itemStyle={{ color: "var(--color-popover-foreground)" }}
                                 formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]}
                             />
                             <Area
@@ -232,23 +235,26 @@ export default function OverviewDashboard({ onNavigateToLocations }: OverviewDas
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                                 <XAxis
                                     type="number"
-                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }}
                                     tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                                 />
                                 <YAxis
                                     type="category"
                                     dataKey="name"
-                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fill: "var(--color-muted-foreground)" }}
                                     width={100}
                                 />
                                 <Tooltip
                                     contentStyle={{
                                         backgroundColor: "var(--color-popover)",
+                                        color: "var(--color-popover-foreground)",
                                         border: "1px solid var(--color-border)",
                                         borderRadius: "0",
                                         fontSize: "11px",
                                         fontFamily: "'JetBrains Mono', monospace",
                                     }}
+                                    labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                    itemStyle={{ color: "var(--color-popover-foreground)" }}
                                     formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]}
                                 />
                                 <Bar dataKey="totalRevenue" fill="var(--color-chart-3)" radius={[0, 0, 0, 0]} />
@@ -279,9 +285,11 @@ export default function OverviewDashboard({ onNavigateToLocations }: OverviewDas
                                         outerRadius={80}
                                         paddingAngle={3}
                                         dataKey="value"
-                                        label={({ name, pct }: { name?: string; pct?: number }) =>
-                                            `${name ?? ""} ${pct ?? 0}%`
-                                        }
+                                        label={({ name, pct, x, y }: { name?: string; pct?: number; x?: number; y?: number }) => (
+                                            <text x={x} y={y} fill="var(--color-foreground)" textAnchor="middle" dominantBaseline="central" fontSize={12} fontFamily="'JetBrains Mono', monospace">
+                                                {`${name ?? ""} ${pct ?? 0}%`}
+                                            </text>
+                                        )}
                                     >
                                         {orderTypeSplit.map((_entry, idx) => (
                                             <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
@@ -290,11 +298,14 @@ export default function OverviewDashboard({ onNavigateToLocations }: OverviewDas
                                     <Tooltip
                                         contentStyle={{
                                             backgroundColor: "var(--color-popover)",
+                                            color: "var(--color-popover-foreground)",
                                             border: "1px solid var(--color-border)",
                                             borderRadius: "0",
                                             fontSize: "11px",
                                             fontFamily: "'JetBrains Mono', monospace",
                                         }}
+                                        labelStyle={{ color: "var(--color-popover-foreground)" }}
+                                        itemStyle={{ color: "var(--color-popover-foreground)" }}
                                         formatter={(v?: number) => [`$${(v ?? 0).toLocaleString()}`, undefined]}
                                     />
                                 </PieChart>
