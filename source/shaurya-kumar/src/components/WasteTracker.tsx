@@ -1,7 +1,5 @@
 import { useMemo, useState, useRef, useCallback } from "react";
 import { useInventory } from "@/hooks/useInventory";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
     BarChart,
     Bar,
@@ -16,9 +14,6 @@ import {
 import { AlertTriangle, ArrowUpRight, ArrowDownRight, Download } from "lucide-react";
 
 const WASTE_THRESHOLD = 10; // 10% waste rate is the threshold
-
-
-
 
 const CATEGORY_LABELS: Record<string, string> = {
     dairy: "Dairy",
@@ -152,31 +147,35 @@ export default function WasteTracker() {
 
     if (loading) {
         return (
-            <Card>
-                <CardContent className="py-12 text-center text-muted-foreground">
+            <div className="bp-card p-12 text-center">
+                <div className="flex items-center justify-center gap-3 text-muted-foreground text-[11px] uppercase tracking-[0.15em]">
+                    <span className="w-2 h-2 bg-primary animate-pulse" style={{ animationDuration: '1.5s' }} />
                     Loading waste data...
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         );
     }
 
     if (error) {
         return (
-            <Card className="border-destructive">
-                <CardContent className="py-8 text-center">
-                    <p className="text-destructive font-medium">Failed to load waste data</p>
-                    <p className="text-sm text-muted-foreground mt-1">{error}</p>
-                </CardContent>
-            </Card>
+            <div className="bp-card border-destructive p-8 text-center">
+                <p className="text-destructive font-medium text-sm">Failed to load waste data</p>
+                <p className="text-xs text-muted-foreground mt-1">{error}</p>
+            </div>
         );
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
+            {/* Section label */}
+            <div className="bp-section-label">
+                <span>Waste Analysis</span>
+            </div>
+
             {/* Flags summary */}
             {flaggedCount > 0 && (
-                <div className="flex items-center gap-2 text-sm bg-red-500/5 border border-red-500/20 text-red-600 px-4 py-2.5 rounded-lg">
-                    <AlertTriangle size={16} />
+                <div className="flex items-center gap-2 text-xs bg-red-500/5 border border-red-500/20 text-red-500 px-4 py-2.5">
+                    <AlertTriangle size={14} />
                     <span>
                         <strong>{flaggedCount} location{flaggedCount > 1 ? "s" : ""}</strong> above the{" "}
                         {WASTE_THRESHOLD}% waste threshold
@@ -185,13 +184,13 @@ export default function WasteTracker() {
             )}
 
             {/* Category filter */}
-            <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-muted-foreground font-medium">Filter by category:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-[0.2em] mr-1">Filter:</span>
                 <button
                     onClick={() => setSelectedCategory(null)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedCategory === null
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-accent"
+                    className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors border ${selectedCategory === null
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-transparent text-muted-foreground border-border hover:bg-accent"
                         }`}
                 >
                     All
@@ -200,9 +199,9 @@ export default function WasteTracker() {
                     <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat === selectedCategory ? null : cat)}
-                        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedCategory === cat
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted text-muted-foreground hover:bg-accent"
+                        className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] transition-colors border ${selectedCategory === cat
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-transparent text-muted-foreground border-border hover:bg-accent"
                             }`}
                     >
                         {CATEGORY_LABELS[cat] || cat}
@@ -211,40 +210,43 @@ export default function WasteTracker() {
             </div>
 
             {/* Waste rate by location */}
-            <Card>
-                <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">
+            <div className="bp-card">
+                <div className="bp-corner-bl" />
+                <div className="bp-corner-br" />
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                    <div className="flex items-center gap-2">
+                        <span className="bp-spec">No. 01</span>
+                        <span className="text-sm font-semibold">
                             Waste Rate by Location
-                            {selectedCategory && (
-                                <Badge variant="outline" className="ml-2 text-xs font-normal">
-                                    {CATEGORY_LABELS[selectedCategory] || selectedCategory}
-                                </Badge>
-                            )}
-                        </CardTitle>
-                        <div className="flex items-center gap-1">
-                            <button
-                                onClick={() => exportChartPNG("waste_rate")}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            >
-                                <Download size={11} /> PNG
-                            </button>
-                            <button
-                                onClick={() => {
-                                    const headers = ["Location", "Waste %", "Waste Cost", "Above Threshold"];
-                                    const rows = wasteByLocation.map(w => [
-                                        w.name, w.wastePct, `$${w.wasteCost.toLocaleString()}`, w.aboveThreshold ? "Yes" : "No"
-                                    ]);
-                                    exportCSV("waste_rate_data", headers, rows);
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            >
-                                <Download size={11} /> CSV
-                            </button>
-                        </div>
+                        </span>
+                        {selectedCategory && (
+                            <span className="bp-badge text-muted-foreground text-[9px]">
+                                {CATEGORY_LABELS[selectedCategory] || selectedCategory}
+                            </span>
+                        )}
                     </div>
-                </CardHeader>
-                <CardContent>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => exportChartPNG("waste_rate")}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <Download size={10} /> PNG
+                        </button>
+                        <button
+                            onClick={() => {
+                                const headers = ["Location", "Waste %", "Waste Cost", "Above Threshold"];
+                                const rows = wasteByLocation.map(w => [
+                                    w.name, w.wastePct, `$${w.wasteCost.toLocaleString()}`, w.aboveThreshold ? "Yes" : "No"
+                                ]);
+                                exportCSV("waste_rate_data", headers, rows);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground border border-border hover:bg-accent hover:text-foreground transition-colors"
+                        >
+                            <Download size={10} /> CSV
+                        </button>
+                    </div>
+                </div>
+                <div className="p-4">
                     <div ref={wasteChartRef}>
                         <ResponsiveContainer width="100%" height={360}>
                             <BarChart
@@ -255,22 +257,23 @@ export default function WasteTracker() {
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" horizontal={false} />
                                 <XAxis
                                     type="number"
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
                                     tickFormatter={(v) => `${v}%`}
                                     domain={[0, "auto"]}
                                 />
                                 <YAxis
                                     type="category"
                                     dataKey="name"
-                                    tick={{ fontSize: 11 }}
+                                    tick={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}
                                     width={120}
                                 />
                                 <Tooltip
                                     contentStyle={{
                                         backgroundColor: "var(--color-popover)",
                                         border: "1px solid var(--color-border)",
-                                        borderRadius: "8px",
-                                        fontSize: "12px",
+                                        borderRadius: "0",
+                                        fontSize: "11px",
+                                        fontFamily: "'JetBrains Mono', monospace",
                                     }}
                                     formatter={(v?: number) => [`${v ?? 0}%`, "Waste Rate"]}
                                 />
@@ -281,11 +284,11 @@ export default function WasteTracker() {
                                     label={{
                                         value: `${WASTE_THRESHOLD}% threshold`,
                                         position: "top",
-                                        fontSize: 10,
+                                        fontSize: 9,
                                         fill: "var(--color-destructive)",
                                     }}
                                 />
-                                <Bar dataKey="wastePct" radius={[0, 4, 4, 0]}>
+                                <Bar dataKey="wastePct" radius={[0, 0, 0, 0]}>
                                     {wasteByLocation.map((entry) => (
                                         <Cell
                                             key={entry.locationId}
@@ -296,58 +299,61 @@ export default function WasteTracker() {
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
 
             {/* Waste trend table */}
-            <Card>
-                <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Waste Trend (Improving / Worsening)</CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wider">
-                                    <th className="text-left px-4 py-3 font-medium">Location</th>
-                                    <th className="text-right px-4 py-3 font-medium">Earlier Period</th>
-                                    <th className="text-right px-4 py-3 font-medium">Recent Period</th>
-                                    <th className="text-center px-4 py-3 font-medium">Trend</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {wasteTrend
-                                    .sort((a, b) => b.latePct - a.latePct)
-                                    .map((t) => (
-                                        <tr key={t.locationId} className="border-b border-border/50">
-                                            <td className="px-4 py-2.5 font-medium">{t.name}</td>
-                                            <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
-                                                {t.earlyPct}%
-                                            </td>
-                                            <td
-                                                className={`px-4 py-2.5 text-right tabular-nums font-medium ${t.latePct > WASTE_THRESHOLD ? "text-red-500" : ""
-                                                    }`}
-                                            >
-                                                {t.latePct}%
-                                            </td>
-                                            <td className="px-4 py-2.5 text-center">
-                                                {t.improving ? (
-                                                    <span className="inline-flex items-center gap-1 text-emerald-600 text-xs font-medium">
-                                                        <ArrowDownRight size={14} /> Improving
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 text-red-500 text-xs font-medium">
-                                                        <ArrowUpRight size={14} /> Worsening
-                                                    </span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                            </tbody>
-                        </table>
+            <div className="bp-card">
+                <div className="bp-corner-bl" />
+                <div className="bp-corner-br" />
+                <div className="px-4 py-3 border-b border-border">
+                    <div className="flex items-center gap-2">
+                        <span className="bp-spec">No. 02</span>
+                        <span className="text-sm font-semibold">Waste Trend (Improving / Worsening)</span>
                     </div>
-                </CardContent>
-            </Card>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                        <thead>
+                            <tr className="border-b border-border text-[9px] text-muted-foreground uppercase tracking-[0.2em]">
+                                <th className="text-left px-4 py-3 font-medium">Location</th>
+                                <th className="text-right px-4 py-3 font-medium">Earlier Period</th>
+                                <th className="text-right px-4 py-3 font-medium">Recent Period</th>
+                                <th className="text-center px-4 py-3 font-medium">Trend</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {wasteTrend
+                                .sort((a, b) => b.latePct - a.latePct)
+                                .map((t) => (
+                                    <tr key={t.locationId} className="border-b border-border/40">
+                                        <td className="px-4 py-2.5 font-medium">{t.name}</td>
+                                        <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                                            {t.earlyPct}%
+                                        </td>
+                                        <td
+                                            className={`px-4 py-2.5 text-right tabular-nums font-medium ${t.latePct > WASTE_THRESHOLD ? "text-red-500" : ""
+                                                }`}
+                                        >
+                                            {t.latePct}%
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center">
+                                            {t.improving ? (
+                                                <span className="inline-flex items-center gap-1 text-emerald-500 text-[10px] font-semibold uppercase tracking-wider">
+                                                    <ArrowDownRight size={12} /> Improving
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-red-500 text-[10px] font-semibold uppercase tracking-wider">
+                                                    <ArrowUpRight size={12} /> Worsening
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 }
