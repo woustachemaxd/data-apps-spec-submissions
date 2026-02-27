@@ -5,14 +5,15 @@ import { ArrowRight, TrendingUp, AlertCircle, Trash2, BarChart3, Moon, Sun, Trop
 import {
   BarChart,
   Bar,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  ComposedChart,
-  Legend
+  Legend,
+  PieChart,
+  Pie,
+  Cell
 } from "recharts";
 
 import type {
@@ -30,7 +31,7 @@ const fmtFixed = (v: unknown, digits = 1) => {
   return Number.isFinite(n) ? n.toFixed(digits) : "—";
 };
 
-// Export helpers (kept for Insight Modal functionality)
+// Export helpers
 const downloadFile = (filename: string, content: string, mime = "text/csv") => {
   const blob = new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
@@ -60,16 +61,17 @@ export default function App() {
   const [waste, setWaste] = useState<LocationWasteSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(true);
   const [surpriseOpen, setSurpriseOpen] = useState(false);
   const [surpriseText, setSurpriseText] = useState<string | null>(null);
 
   useEffect(() => {
     try {
+      document.documentElement.classList.add("dark");
       const stored = localStorage.getItem("snowcone_dark");
-      if (stored === "1") {
-        document.documentElement.classList.add("dark");
-        setDark(true);
+      if (stored === "0") {
+        document.documentElement.classList.remove("dark");
+        setDark(false);
       }
     } catch (e) {}
 
@@ -98,10 +100,10 @@ export default function App() {
     setDark(next);
     if (next) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("snowcone_dark", "1");
+      localStorage.removeItem("snowcone_dark");
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.removeItem("snowcone_dark");
+      localStorage.setItem("snowcone_dark", "0");
     }
   }
 
@@ -125,24 +127,6 @@ export default function App() {
     setSurpriseOpen(true);
   }
 
-  async function refreshDashboard() {
-    try {
-      setLoading(true);
-      const [scores, wasteData] = await Promise.all([
-        getLocationScorecard(),
-        getLocationWasteSummary(),
-      ]);
-      setScorecard(scores);
-      setWaste(wasteData);
-      setError(null);
-    } catch (e) {
-      console.error("refresh error", e);
-      setError(e instanceof Error ? e.message : "Failed to refresh data");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   const revenueChartData = scorecard
     .sort((a, b) => b.TOTAL_REVENUE - a.TOTAL_REVENUE)
     .slice(0, 5)
@@ -152,6 +136,8 @@ export default function App() {
     .sort((a, b) => b.TOTAL_WASTE_COST - a.TOTAL_WASTE_COST)
     .slice(0, 5)
     .map((w) => ({ name: w.LOCATION_NAME, cost: w.TOTAL_WASTE_COST, units: w.TOTAL_WASTE_UNITS }));
+
+  const DONUT_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
 
   return (
     <div className="min-h-screen bg-background">
@@ -165,7 +151,8 @@ export default function App() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={toggleDarkMode} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors text-xs font-medium">
+          <button onClick={() => handleExportCSV("scorecard")} className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors text-xs font-medium">Export CSV</button>
+          <button onClick={toggleDarkMode} aria-label="Toggle Theme" className="px-3 py-1.5 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors text-xs font-medium">
             {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           <button onClick={() => surpriseUs()} className="px-4 py-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-xs font-bold shadow-sm">Insights ✨</button>
@@ -237,7 +224,6 @@ export default function App() {
               </Card>
             </Link>
 
-            {/* NEW: Top Performers Card */}
             <Link to="/scorecard" className="group block h-full">
               <Card style={{ backgroundColor: 'var(--card-4-bg)' }} className="h-full border-none shadow-sm hover:shadow-md transition-all group-hover:-translate-y-0.5 duration-200">
                 <CardContent className="p-5 flex flex-col justify-between h-full space-y-4">
@@ -281,7 +267,7 @@ export default function App() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border-red-200 dark:border-red-900 bg-red-50/50 dark:bg-red-950/10">
+            <Card className="shadow-sm border-destructive/20 bg-destructive/5">
               <CardContent className="p-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-destructive mb-1 flex items-center gap-1">
                   <AlertCircle className="w-3.5 h-3.5" /> Needs Attention
@@ -294,9 +280,11 @@ export default function App() {
           </div>
         )}
 
-        {/* Charts */}
+        {/* Visual KPI Charts */}
         {!loading && !error && revenueChartData.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            {/* Chart 1: Bar Chart (Revenue) */}
             <Card className="shadow-sm border-border bg-card">
               <CardHeader className="pb-6">
                 <CardTitle className="text-base font-bold">Top Revenue Generators</CardTitle>
@@ -307,43 +295,49 @@ export default function App() {
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `$${v/1000}k`} />
-                    <Tooltip cursor={{fill: 'var(--muted)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                    <Tooltip cursor={{fill: 'var(--muted)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} formatter={(v) => [`$${Number(v).toLocaleString()}`, "Revenue"]} />
                     <Bar dataKey="revenue" fill="var(--chart-1)" radius={[4, 4, 0, 0]} barSize={45} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
+            {/* Chart 2: Donut Chart (Waste Share) */}
             <Card className="shadow-sm border-border bg-card">
               <CardHeader className="pb-6">
-                <CardTitle className="text-base font-bold">Waste Impact vs Units Lost</CardTitle>
+                <CardTitle className="text-base font-bold">Waste Share by Top Offending Stores</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={260}>
-                  <ComposedChart data={wasteChartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} dy={10} />
-                    <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} tickFormatter={(v) => `$${v/1000}k`} />
-                    <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} />
-                    <Tooltip cursor={{fill: 'var(--muted)'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                    <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
-                    <Bar yAxisId="left" dataKey="cost" name="Cost ($)" fill="var(--chart-3)" radius={[4, 4, 0, 0]} barSize={45} />
-                    <Line yAxisId="right" type="monotone" dataKey="units" name="Units Wasted" stroke="var(--chart-2)" strokeWidth={3} dot={{ r: 4 }} />
-                  </ComposedChart>
+                  <PieChart>
+                    <Pie
+                      data={wasteChartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={95}
+                      paddingAngle={4}
+                      dataKey="cost"
+                      nameKey="name"
+                    >
+                      {wasteChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      formatter={(value) => [`$${Number(value).toLocaleString()}`, "Waste Cost"]} 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                    />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                  </PieChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
         )}
-
-        {loading && (
-          <div className="py-12 text-center text-muted-foreground flex flex-col items-center justify-center gap-3">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="font-medium text-sm">Syncing latest data...</p>
-          </div>
-        )}
       </main>
 
+      {/* Surprise Modal */}
       {surpriseOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-card text-card-foreground p-8 rounded-xl shadow-2xl max-w-md w-full border border-border">
